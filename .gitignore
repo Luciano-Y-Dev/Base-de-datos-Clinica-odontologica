@@ -1,36 +1,16 @@
-# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtual environments
-.venv/
-venv/
-ENV/
-
-# UV
-uv.lock
-
-# Distribution / packaging
-*.egg-info/
-*.egg
-dist/
 build/
+dist/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+*.log
 
-# OS
-Thumbs.db
-Desktop.ini
-.DS_Store
-
-# Environment variables
 .env
-.env.local
+.venv/
 
-# Local docs
-PLAN.md
+*.lock
+
+.flet/
+.vscode/
