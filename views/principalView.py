@@ -39,15 +39,35 @@ def sideBar(navigate_callback=None):
     )
 
 
-def cardPatient(patient, navigate_callback):
+def cardPatient(patient, navigate_callback, page):
     remaining = readREMAINING(patient[0])
 
     def on_edit(e):
         navigate_callback("form", patient[0])
 
     def on_delete(e):
-        deleteRow_PACIENTES(patient[0])
-        navigate_callback("principal")
+        def confirm_delete(e):
+            deleteRow_PACIENTES(patient[0])
+            dialog.open = False
+            page.update()
+            navigate_callback("principal")
+
+        def cancel_delete(e):
+            dialog.open = False
+            page.update()
+
+        dialog = ft.AlertDialog(
+            title=ft.Text("Confirmar eliminación"),
+            content=ft.Text(f"¿Eliminar a {patient[1]} {patient[2]}? Esta acción no se puede deshacer."),
+            actions=[
+                ft.TextButton("Cancelar", on_click=cancel_delete),
+                ft.TextButton("Eliminar", on_click=confirm_delete, style=ft.ButtonStyle(color="#E53935")),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.overlay.append(dialog)
+        dialog.open = True
+        page.update()
 
     return ft.Container(
         content=ft.Row([
@@ -87,7 +107,7 @@ def principalContainer(page, navigate_callback):
         navigate_callback("form", None)
 
     if not patients:
-        body = ft.Column([
+        content = ft.Column([
             ft.Text("Clínica Odontológica", size=28,
                     weight=ft.FontWeight.BOLD, color=Txt1),
             ft.Text("Dra. Raquel Virguez", size=18, color=Txt2),
@@ -116,19 +136,15 @@ def principalContainer(page, navigate_callback):
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
         body = ft.ListView(
-            controls=[cardPatient(p, navigate_callback) for p in patients],
+            controls=[cardPatient(p, navigate_callback, page) for p in patients],
             spacing=12,
             expand=True,
         )
 
-        return ft.Container(
-            content=ft.Column([header, body], expand=True, spacing=12),
-            padding=24,
-            expand=True,
-        )
+        content = ft.Column([header, body], expand=True, spacing=12)
 
     return ft.Container(
-        content=body,
+        content=content,
         padding=24,
         expand=True,
     )

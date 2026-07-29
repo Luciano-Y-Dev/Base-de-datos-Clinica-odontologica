@@ -1,14 +1,4 @@
 import sqlite3 as sql
-from contextlib import contextmanager
-
-@contextmanager
-def get_connection():
-    conn = sql.connect("Clinica.db")
-    conn.execute("PRAGMA foreign_keys = ON;")
-    try:
-        yield conn
-    finally:
-        conn.close()
 
 def getConnection():
     conn = sql.connect("Clinica.db")
