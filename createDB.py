@@ -1,11 +1,14 @@
 import sqlite3 as sql
+from contextlib import contextmanager
 
-def createDB():
+@contextmanager
+def get_connection():
     conn = sql.connect("Clinica.db")
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA foreign_keys = ON;")
-    conn.commit()
-    conn.close()
+    conn.execute("PRAGMA foreign_keys = ON;")
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 def getConnection():
     conn = sql.connect("Clinica.db")
@@ -43,6 +46,7 @@ def createRow_PACIENTES(name, lastName, age, CI, entryDate, phoneNumber, home, r
                         (name, lastName, age, CI, entryDate, phoneNumber, home, representName, representCI, consultReason, presentIssues)
                         )
         conn.commit()
+        return cursor.lastrowid
     except sql.Error as e:
         conn.rollback()
         raise e
@@ -250,6 +254,7 @@ def createTable_ODONTOGRAMA():
     conn.commit()
     conn.close()
 
+# >>> NO USADO ACTUALMENTE - Pendiente de implementar en UI <<<
 def createRow_ODONTOGRAMA(patientID, notes):
     conn = getConnection()
     try:
@@ -341,6 +346,7 @@ def readTable_ODONTOGRAMA_DETAILS():
     finally:
         conn.close()
 
+# >>> NO USADO ACTUALMENTE - Pendiente de implementar en UI <<<
 def readODONTOGRAMA_DETAILS(odontogramID):
     conn = getConnection()
     try:
@@ -392,6 +398,7 @@ def createTable_TRATAMIENTO():
     conn.commit()
     conn.close()
 
+# >>> NO USADO ACTUALMENTE - Pendiente de implementar en UI <<<
 def createRow_TRATAMIENTO(patientID, diagnosis, treatmentPlan):
     conn = getConnection()
     try:
@@ -470,6 +477,7 @@ def createTable_ABONO():
     conn.commit()
     conn.close()
 
+# >>> NO USADO ACTUALMENTE - Pendiente de implementar en UI <<<
 def createRow_ABONO(patientID, date, description, treatmentCost, amount, remaining):
     conn = getConnection()
     try:
@@ -532,7 +540,6 @@ def deleteRow_ABONO(id):
 
 
 if __name__ == "__main__":
-    createDB()
     createTable_PACIENTES()
     createTable_ANTECEDENTES()
     createTable_EXAMEN()
