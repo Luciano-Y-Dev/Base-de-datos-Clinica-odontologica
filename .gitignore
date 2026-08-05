@@ -12,5 +12,6 @@ dist/
 
 *.lock
 
-.flet/
 .vscode/
+
+data/*.db

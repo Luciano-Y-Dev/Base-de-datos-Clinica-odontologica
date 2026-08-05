@@ -1,7 +1,10 @@
 import sqlite3 as sql
+import os
+
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "Clinica.db")
 
 def getConnection():
-    conn = sql.connect("Clinica.db")
+    conn = sql.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 

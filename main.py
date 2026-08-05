@@ -1,35 +1,74 @@
-import flet as ft
-from views.principalView import sideBar, principalContainer
-from views.formPatient import formPatientView
+import sys
+from PySide6.QtWidgets import QApplication, QMainWindow
+from views.principal_view import PrincipalView
+from views.form_patient import FormPatient
+from views.patient_detail_view import PatientDetailView
 
-Bg = "#FDF6F6"
 
-def main(page: ft.Page):
-    page.title = "Clínica Odontológica - Dra. Raquel Virguez"
-    page.bgcolor = Bg
-    page.padding = 0
-    page.window.width = 1200
-    page.window.height = 700
+class MainW(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Clínica Odontológica")
+        self.setFixedSize(1200, 800)
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #FDF2F4;
+            }
+            QWidget {
+                background-color: #FDF2F4;
+            }
+            QScrollBar:vertical {
+                background: transparent;
+                width: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: #D1D5DB;
+                border-radius: 3px;
+                min-height: 24px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #9CA3AF;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: transparent;
+            }
+        """)
+        self._build_ui()
 
-    content_area = ft.Column(expand=True)
+    def _build_ui(self):
+        self.principal = PrincipalView(navigate_callback=self.navigate)
+        self.setCentralWidget(self.principal)
 
-    def navigate(view, patientID=None):
-        content_area.controls.clear()
+    def navigate(self, action, patient_id=None):
+        if action == "principal":
+            self.principal = PrincipalView(navigate_callback=self.navigate)
+            self.setCentralWidget(self.principal)
+        elif action == "form":
+            self.form = FormPatient(patient_id=patient_id, navigate_callback=self.navigate)
+            self.form.saved.connect(self._on_saved)
+            self.setCentralWidget(self.form)
+        elif action == "detail":
+            self.detail = PatientDetailView(patient_id=patient_id, navigate_callback=self.navigate)
+            self.setCentralWidget(self.detail)
+        elif action == "abonos":
+            print("Abrir abonos")
+        elif action == "export":
+            print("Exportar datos")
 
-        if view == "principal":
-            content_area.controls.append(principalContainer(page, navigate))
-        elif view == "form":
-            def go_back():
-                navigate("principal")
-            content_area.controls.append(formPatientView(page, patientID, go_back))
+    def _on_saved(self):
+        self.principal = PrincipalView(navigate_callback=self.navigate)
+        self.setCentralWidget(self.principal)
 
-        page.update()
 
-    navigate("principal")
+def main():
+    app = QApplication(sys.argv)
+    window = MainW()
+    window.show()
+    sys.exit(app.exec())
 
-    page.add(ft.Row([
-        sideBar(navigate),
-        content_area
-    ], expand=True))
 
-ft.run(main)
+if __name__ == "__main__":
+    main()

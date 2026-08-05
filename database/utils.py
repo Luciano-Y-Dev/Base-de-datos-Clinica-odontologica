@@ -1,4 +1,4 @@
-from createDB import getConnection
+from .createDB import getConnection
 
 def readTable_PACIENTES_ordered():
     conn = getConnection()
