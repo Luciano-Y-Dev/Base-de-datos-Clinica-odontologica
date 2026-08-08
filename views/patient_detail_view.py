@@ -163,7 +163,10 @@ class PatientDetailView(QWidget):
 
         lo.addSpacing(24)
 
-        name = f"{self.paciente[1]} {self.paciente[2]}" if self.paciente else ""
+        if self.paciente:
+            name = f"{self.paciente[1]} {self.paciente[2]}"
+        else:
+            name = ""
         title = QLabel(name)
         title.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {Txt1}; background: transparent;")
@@ -171,45 +174,47 @@ class PatientDetailView(QWidget):
 
         lo.addStretch()
 
-        age = QLabel(f"{self.paciente[3]} años")
-        age.setFont(QFont("Segoe UI", 13))
-        age.setStyleSheet(f"color: {Txt2}; background: transparent;")
-        lo.addWidget(age)
+        if self.paciente:
+            age = QLabel(f"{self.paciente[3]} años")
+            age.setFont(QFont("Segoe UI", 13))
+            age.setStyleSheet(f"color: {Txt2}; background: transparent;")
+            lo.addWidget(age)
 
-        sep = QLabel("·")
-        sep.setFont(QFont("Segoe UI", 16))
-        sep.setStyleSheet(f"color: {PrimaryBorder}; background: transparent;")
-        lo.addWidget(sep)
+            sep = QLabel("·")
+            sep.setFont(QFont("Segoe UI", 16))
+            sep.setStyleSheet(f"color: {PrimaryBorder}; background: transparent;")
+            lo.addWidget(sep)
 
-        ci = QLabel(f"CI: {self.paciente[4]}")
-        ci.setFont(QFont("Segoe UI", 13))
-        ci.setStyleSheet(f"color: {Txt2}; background: transparent;")
-        lo.addWidget(ci)
+            ci = QLabel(f"CI: {self.paciente[4]}")
+            ci.setFont(QFont("Segoe UI", 13))
+            ci.setStyleSheet(f"color: {Txt2}; background: transparent;")
+            lo.addWidget(ci)
 
-        lo.addSpacing(20)
+        if self.paciente:
+            lo.addSpacing(20)
 
-        edit_btn = QPushButton("Editar")
-        edit_btn.setFixedHeight(38)
-        edit_btn.setCursor(Qt.PointingHandCursor)
-        edit_btn.setFont(QFont("Segoe UI", 11, QFont.Weight.DemiBold))
-        edit_btn.setStyleSheet(f"""
-            QPushButton {{ background-color: {Second}; color: white; border: 1px solid #C07088; border-radius: 8px; padding: 0 20px; }}
-            QPushButton:hover {{ background-color: #C07088; border-color: {Second}; }}
-        """)
-        if self.navigate_callback:
-            edit_btn.clicked.connect(lambda: self.navigate_callback("form", self.patient_id))
-        lo.addWidget(edit_btn)
+            edit_btn = QPushButton("Editar")
+            edit_btn.setFixedHeight(38)
+            edit_btn.setCursor(Qt.PointingHandCursor)
+            edit_btn.setFont(QFont("Segoe UI", 11, QFont.Weight.DemiBold))
+            edit_btn.setStyleSheet(f"""
+                QPushButton {{ background-color: {Second}; color: white; border: 1px solid #C07088; border-radius: 8px; padding: 0 20px; }}
+                QPushButton:hover {{ background-color: #C07088; border-color: {Second}; }}
+            """)
+            if self.navigate_callback:
+                edit_btn.clicked.connect(lambda: self.navigate_callback("form", self.patient_id))
+            lo.addWidget(edit_btn)
 
-        del_btn = QPushButton("Eliminar")
-        del_btn.setFixedHeight(38)
-        del_btn.setCursor(Qt.PointingHandCursor)
-        del_btn.setFont(QFont("Segoe UI", 11, QFont.Weight.DemiBold))
-        del_btn.setStyleSheet(f"""
-            QPushButton {{ background-color: #E8807A; color: white; border: 1px solid #D66E68; border-radius: 8px; padding: 0 20px; }}
-            QPushButton:hover {{ background-color: #D66E68; border-color: #C55C56; }}
-        """)
-        del_btn.clicked.connect(self._on_delete)
-        lo.addWidget(del_btn)
+            del_btn = QPushButton("Eliminar")
+            del_btn.setFixedHeight(38)
+            del_btn.setCursor(Qt.PointingHandCursor)
+            del_btn.setFont(QFont("Segoe UI", 11, QFont.Weight.DemiBold))
+            del_btn.setStyleSheet(f"""
+                QPushButton {{ background-color: #E8807A; color: white; border: 1px solid #D66E68; border-radius: 8px; padding: 0 20px; }}
+                QPushButton:hover {{ background-color: #D66E68; border-color: #C55C56; }}
+            """)
+            del_btn.clicked.connect(self._on_delete)
+            lo.addWidget(del_btn)
 
         return hdr
 

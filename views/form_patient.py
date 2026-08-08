@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QLineEdit, QTextEdit, QCheckBox,
-    QGridLayout, QGroupBox
+    QGridLayout, QGroupBox, QMessageBox
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
@@ -416,17 +416,41 @@ class FormPatient(QWidget):
 
     def _save(self):
         try:
-            name = self.nameF.text()
-            last = self.lastF.text()
-            age = int(self.ageF.text()) if self.ageF.text() else 0
-            ci = int(self.ciF.text()) if self.ciF.text() else 0
-            date = self.dateF.text()
-            phone = self.phoneF.text()
-            home = self.homeF.text()
-            rep_name = self.repNameF.text()
-            rep_ci = int(self.repCiF.text()) if self.repCiF.text() else 0
-            motiv = self.motivF.text()
-            sympt = self.symptF.toPlainText()
+            name = self.nameF.text().strip()
+            last = self.lastF.text().strip()
+
+            if not name:
+                QMessageBox.warning(self, "Campo requerido", "El nombre es obligatorio.")
+                return
+
+            age_text = self.ageF.text().strip()
+            if not age_text:
+                QMessageBox.warning(self, "Campo requerido", "La edad es obligatoria.")
+                return
+            try:
+                age = int(age_text)
+            except ValueError:
+                QMessageBox.warning(self, "Dato inválido", "La edad debe ser un número entero.")
+                return
+
+            ci_text = self.ciF.text().strip()
+            if not ci_text:
+                QMessageBox.warning(self, "Campo requerido", "La CI es obligatoria.")
+                return
+            try:
+                ci = int(ci_text)
+            except ValueError:
+                QMessageBox.warning(self, "Dato inválido", "La CI debe ser un número entero.")
+                return
+
+            date = self.dateF.text().strip()
+            phone = self.phoneF.text().strip()
+            home = self.homeF.text().strip()
+            rep_name = self.repNameF.text().strip()
+            rep_ci_text = self.repCiF.text().strip()
+            rep_ci = int(rep_ci_text) if rep_ci_text else 0
+            motiv = self.motivF.text().strip()
+            sympt = self.symptF.toPlainText().strip()
 
             if self.is_edit:
                 updateRow_PACIENTES(self.patient_id, name, last, age, ci,
@@ -482,4 +506,4 @@ class FormPatient(QWidget):
                 self.navigate_callback("principal")
 
         except Exception as ex:
-            print(f"Error al guardar: {ex}")
+            QMessageBox.critical(self, "Error al guardar", f"No se pudo guardar el registro:\n{ex}")

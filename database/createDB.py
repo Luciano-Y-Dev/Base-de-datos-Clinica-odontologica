@@ -262,16 +262,6 @@ def createRow_ODONTOGRAMA(patientID, notes):
     finally:
         conn.close()
 
-def readODONTOGRAMA_by_patient(patientID):
-    conn = getConnection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM odontograms WHERE patientID = ? ORDER BY ID DESC LIMIT 1", (patientID,))
-        row = cursor.fetchone()
-        return row
-    finally:
-        conn.close()
-
 def readTable_ODONTOGRAMA():
     conn = getConnection()
     try:
