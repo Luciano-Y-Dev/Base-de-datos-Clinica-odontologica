@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 from views.principal_view import PrincipalView
 from views.form_patient import FormPatient
 from views.patient_detail_view import PatientDetailView
+from views.abonos_view import AbonosView
 
 
 class MainW(QMainWindow):
@@ -54,7 +55,8 @@ class MainW(QMainWindow):
             self.detail = PatientDetailView(patient_id=patient_id, navigate_callback=self.navigate)
             self.setCentralWidget(self.detail)
         elif action == "abonos":
-            print("Abrir abonos")
+            self.abonos = AbonosView(navigate_callback=self.navigate)
+            self.setCentralWidget(self.abonos)
         elif action == "export":
             print("Exportar datos")
 

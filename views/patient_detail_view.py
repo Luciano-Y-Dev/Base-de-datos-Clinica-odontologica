@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from database.utils import readPACIENTE, readANTECEDENTES, readEXAMEN, readREMAINING, readODONTOGRAMA_by_patient
+from database.utils import readPACIENTE, readANTECEDENTES, readEXAMEN, readREMAINING, readODONTOGRAMA_by_patient, readABONOS_ordered
 from database.createDB import deleteRow_PACIENTES, readODONTOGRAMA_DETAILS
 
 Primary = "#C9929B"
@@ -12,7 +12,7 @@ PrimaryBorder = "#E8D5D8"
 Second = "#D4758C"
 Txt1 = "#2D2D2D"
 Txt2 = "#7A7A7A"
-Bg = "#FDF2F4"
+pale_pink = "#FDF2F4"
 White = "#FFFFFF"
 Danger = "#DC2626"
 
@@ -96,7 +96,7 @@ class PatientDetailView(QWidget):
         self.odontograma_details = []
         if self.odontograma:
             self.odontograma_details = readODONTOGRAMA_DETAILS(self.odontograma[0])
-        self.setStyleSheet(f"background-color: {Bg};")
+        self.setStyleSheet(f"background-color: {pale_pink};")
         self._build_ui()
 
     def _build_ui(self):
@@ -136,7 +136,7 @@ class PatientDetailView(QWidget):
         body_lo.addWidget(self._section_antecedentes())
         body_lo.addWidget(self._section_examen())
         body_lo.addWidget(self._section_odontogram())
-        body_lo.addWidget(self._section_saldo())
+        body_lo.addWidget(self._section_abonos())
 
         body_lo.addStretch()
         scroll.setWidget(body)
@@ -352,14 +352,31 @@ class PatientDetailView(QWidget):
 
         return frame
 
-    def _section_saldo(self):
-        frame, lo = _card("Saldo Pendiente")
+    def _section_abonos(self):
+        frame, lo = _card("Saldo y Abonos")
+
+        lo.addSpacing(8)
 
         lbl = QLabel(f"${self.remaining:.2f}")
         lbl.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
         lbl.setStyleSheet(f"color: {Second}; background: transparent;")
         lbl.setAlignment(Qt.AlignCenter)
         lo.addWidget(lbl)
+
+        lo.addSpacing(12)
+
+        abonos = readABONOS_ordered(self.patient_id) if self.patient_id else []
+        if abonos:
+            for a in abonos:
+                row = QLabel(f"{a[2] or '—'}  |  ${a[5]:.2f}  |  {a[3] or '—'}  |  Resta: ${a[6]:.2f}")
+                row.setFont(QFont("Segoe UI", 10))
+                row.setStyleSheet(f"color: {Txt2}; background: transparent;")
+                lo.addWidget(row)
+        else:
+            empty = QLabel("Sin abonos registrados")
+            empty.setFont(QFont("Segoe UI", 11))
+            empty.setStyleSheet(f"color: {Txt2}; background: transparent;")
+            lo.addWidget(empty)
 
         return frame
 

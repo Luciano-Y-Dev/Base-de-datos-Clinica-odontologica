@@ -11,7 +11,7 @@ PrimaryBorder = "#E8D5D8"
 Second = "#D4758C"
 Txt1 = "#2D2D2D"
 Txt2 = "#7A7A7A"
-Bg = "#FDF2F4"
+pale_pink = "#FDF2F4"
 White = "#FFFFFF"
 COLOR_NORMAL = "#FFFFFF"
 
@@ -112,7 +112,7 @@ class ToothWidget(QWidget):
         border_color = QColor(PrimaryBorder)
         if self.selected_face:
             border_color = QColor(Second)
-        painter.setPen(QPen(border_color, 1.5))
+        painter.setPen(Qt.NoPen)
         painter.setBrush(QBrush(QColor(White)))
         painter.drawRoundedRect(tooth_rect, 4, 4)
 
@@ -229,7 +229,7 @@ class OdontogramWidget(QWidget):
         toggle_frame.setStyleSheet(f"""
             QFrame {{
                 background-color: {White};
-                border: 1px solid {PrimaryBorder};
+                border: none;
                 border-radius: 10px;
             }}
         """)
@@ -266,7 +266,7 @@ class OdontogramWidget(QWidget):
         map_container.setStyleSheet(f"""
             QFrame {{
                 background-color: {White};
-                border: 1px solid {PrimaryBorder};
+                border: none;
                 border-radius: 14px;
             }}
         """)
@@ -327,7 +327,7 @@ class OdontogramWidget(QWidget):
         self.desc_field.setFont(QFont("Segoe UI", 9))
         self.desc_field.setStyleSheet(f"""
             QLineEdit {{
-                background-color: {Bg};
+                background-color: {pale_pink};
                 border: none;
                 border-radius: 6px;
                 padding: 6px 8px;
@@ -360,7 +360,7 @@ class OdontogramWidget(QWidget):
         clear_sel_btn.setFont(QFont("Segoe UI", 9))
         clear_sel_btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: {Bg};
+                background-color: {pale_pink};
                 color: {Txt2};
                 border: none;
                 border-radius: 6px;
@@ -402,7 +402,7 @@ class OdontogramWidget(QWidget):
         self.summary_count.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
         self.summary_count.setStyleSheet(f"""
             color: {Second};
-            background-color: {Bg};
+            background-color: {pale_pink};
             border: none;
             border-radius: 10px;
             padding: 2px 10px;
@@ -431,7 +431,7 @@ class OdontogramWidget(QWidget):
         toolbar.setStyleSheet(f"""
             QFrame {{
                 background-color: {White};
-                border: 1px solid {PrimaryBorder};
+                border: none;
                 border-radius: 10px;
             }}
         """)
@@ -830,7 +830,7 @@ class OdontogramWidget(QWidget):
                     tool = TOOL_CARIES
                     desc = str(face_data)
 
-                color, _, tool_name = TOOL_COLORS.get(tool, (Txt2, Bg, "Unknown"))
+                color, _, tool_name = TOOL_COLORS.get(tool, (Txt2, pale_pink, "Unknown"))
 
                 dot = QFrame()
                 dot.setFixedSize(8, 8)

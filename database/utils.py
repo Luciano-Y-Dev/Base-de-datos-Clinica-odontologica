@@ -81,3 +81,44 @@ def existODONTOGRAMA(patientID):
         return cursor.fetchone()[0] > 0
     finally:
         conn.close()
+
+def readABONOS_ordered(patientID):
+    conn = getConnection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM abonos WHERE patientID = ? ORDER BY ID DESC", (patientID,))
+        return cursor.fetchall()
+    finally:
+        conn.close()
+
+def readPATIENTS_with_remaining():
+    conn = getConnection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.*, 
+                   (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) as remaining
+            FROM pacientes p
+            WHERE (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) > 0
+               OR (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) IS NULL
+            ORDER BY p.entryDate DESC
+        """)
+        return cursor.fetchall()
+    finally:
+        conn.close()
+
+
+def readPATIENTS_paid():
+    conn = getConnection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.*, 
+                   (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) as remaining
+            FROM pacientes p
+            WHERE (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) = 0
+            ORDER BY p.entryDate DESC
+        """)
+        return cursor.fetchall()
+    finally:
+        conn.close()

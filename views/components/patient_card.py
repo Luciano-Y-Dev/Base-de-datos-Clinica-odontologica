@@ -28,14 +28,14 @@ class PatientCard(QFrame):
         self.setStyleSheet(f"""
             QFrame {{
                 background-color: {White};
-                border: 1px solid {Divider};
+                border: none;
                 border-left: 4px solid {Primary};
                 border-radius: 16px;
             }}
             QFrame:hover {{
                 background-color: #FFF5F7;
-                border-color: {Second};
-                border-left-color: {Second};
+                border: 1px solid {Second};
+                border-left: 4px solid {Second};
             }}
         """)
 

@@ -12,7 +12,7 @@ Primary = "#C9929B"
 Second = "#D4758C"
 Txt1 = "#2D2D2D"
 Txt2 = "#7A7A7A"
-Bg = "#FDF2F4"
+pale_pink = "#FDF2F4"
 White = "#FFFFFF"
 
 
@@ -77,7 +77,7 @@ class Sidebar(QFrame):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 28, 16, 20)
-        layout.setSpacing(0)
+        layout.setSpacing(8)
 
         brand = QLabel("Clínica")
         brand.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
@@ -121,7 +121,7 @@ class PrincipalView(QWidget):
     def __init__(self, navigate_callback=None, parent=None):
         super().__init__(parent)
         self.navigate_callback = navigate_callback
-        self.setStyleSheet(f"background-color: {Bg};")
+        self.setStyleSheet(f"background-color: {pale_pink};")
         self._build_ui()
 
     def _build_ui(self):
