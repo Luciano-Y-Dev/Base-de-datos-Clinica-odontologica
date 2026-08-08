@@ -7,13 +7,18 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 from database.utils import (
     readPACIENTE, readANTECEDENTES, readEXAMEN,
-    existANTECEDENTES, existEXAMEN
+    existANTECEDENTES, existEXAMEN,
+    readODONTOGRAMA_by_patient, existODONTOGRAMA
 )
 from database.createDB import (
     createRow_PACIENTES, updateRow_PACIENTES,
     createRow_ANTECEDENTES, updateRow_ANTECEDENTES,
-    createRow_EXAMEN, updateRow_EXAMEN
+    createRow_EXAMEN, updateRow_EXAMEN,
+    createRow_ODONTOGRAMA, updateRow_ODONTOGRAMA,
+    createRow_ODONTOGRAMA_DETAILS, deleteRow_ODONTOGRAMA_DETAILS,
+    readODONTOGRAMA_DETAILS
 )
+from views.components.odontogram import OdontogramWidget
 
 Primary = "#C9929B"
 PrimaryBorder = "#E8D5D8"
@@ -108,10 +113,16 @@ class FormPatient(QWidget):
             self.paciente = readPACIENTE(self.patient_id)
             self.antecedentes = readANTECEDENTES(self.patient_id)
             self.examen = readEXAMEN(self.patient_id)
+            self.odontograma = readODONTOGRAMA_by_patient(self.patient_id)
+            self.odontograma_details = []
+            if self.odontograma:
+                self.odontograma_details = readODONTOGRAMA_DETAILS(self.odontograma[0])
         else:
             self.paciente = None
             self.antecedentes = None
             self.examen = None
+            self.odontograma = None
+            self.odontograma_details = []
 
     def _build_ui(self):
         root = QVBoxLayout(self)
@@ -143,6 +154,7 @@ class FormPatient(QWidget):
         content_layout.addLayout(self._build_personal_section())
         content_layout.addLayout(self._build_antecedentes_section())
         content_layout.addLayout(self._build_examen_section())
+        content_layout.addLayout(self._build_odontogram_section())
 
         content_layout.addStretch()
         scroll.setWidget(content)
@@ -369,6 +381,27 @@ class FormPatient(QWidget):
         layout.addWidget(card)
         return layout
 
+    def _build_odontogram_section(self):
+        layout = QVBoxLayout()
+        layout.setSpacing(12)
+
+        title = QLabel("Odontograma")
+        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        title.setStyleSheet(f"color: {Txt1}; background: transparent;")
+        layout.addWidget(title)
+
+        self.odontogram_widget = OdontogramWidget()
+        if self.odontograma_details:
+            self.odontogram_widget.load_data(self.odontograma_details)
+
+        card = self._make_card()
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(8, 8, 8, 8)
+        card_layout.addWidget(self.odontogram_widget)
+
+        layout.addWidget(card)
+        return layout
+
     def _make_card(self):
         card = QFrame()
         card.setStyleSheet(f"""
@@ -420,6 +453,29 @@ class FormPatient(QWidget):
                 updateRow_EXAMEN(cid, *ed)
             else:
                 createRow_EXAMEN(cid, *ed)
+
+            od_data = self.odontogram_widget.get_data()
+            if od_data["affections"]:
+                notes = ""
+                if existODONTOGRAMA(cid):
+                    od_header = readODONTOGRAMA_by_patient(cid)
+                    odontogram_id = od_header[0]
+                    updateRow_ODONTOGRAMA(odontogram_id, notes)
+                else:
+                    odontogram_id = createRow_ODONTOGRAMA(cid, notes)
+
+                existing_details = readODONTOGRAMA_DETAILS(odontogram_id)
+                for detail in existing_details:
+                    deleteRow_ODONTOGRAMA_DETAILS(detail[0])
+
+                for aff in od_data["affections"]:
+                    createRow_ODONTOGRAMA_DETAILS(
+                        odontogram_id,
+                        aff["tooth"],
+                        aff["face"],
+                        aff["affected"],
+                        aff["description"],
+                    )
 
             self.saved.emit()
             if self.navigate_callback:

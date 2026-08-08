@@ -247,7 +247,6 @@ def createTable_ODONTOGRAMA():
     conn.commit()
     conn.close()
 
-# >>> NO USADO ACTUALMENTE - Pendiente de implementar en UI <<<
 def createRow_ODONTOGRAMA(patientID, notes):
     conn = getConnection()
     try:
@@ -256,9 +255,20 @@ def createRow_ODONTOGRAMA(patientID, notes):
                         (patientID, notes)
                         )
         conn.commit()
+        return cursor.lastrowid
     except sql.Error as e:
         conn.rollback()
         raise e
+    finally:
+        conn.close()
+
+def readODONTOGRAMA_by_patient(patientID):
+    conn = getConnection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM odontograms WHERE patientID = ? ORDER BY ID DESC LIMIT 1", (patientID,))
+        row = cursor.fetchone()
+        return row
     finally:
         conn.close()
 
@@ -339,7 +349,6 @@ def readTable_ODONTOGRAMA_DETAILS():
     finally:
         conn.close()
 
-# >>> NO USADO ACTUALMENTE - Pendiente de implementar en UI <<<
 def readODONTOGRAMA_DETAILS(odontogramID):
     conn = getConnection()
     try:

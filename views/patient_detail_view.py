@@ -4,8 +4,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from database.utils import readPACIENTE, readANTECEDENTES, readEXAMEN, readREMAINING
-from database.createDB import deleteRow_PACIENTES
+from database.utils import readPACIENTE, readANTECEDENTES, readEXAMEN, readREMAINING, readODONTOGRAMA_by_patient
+from database.createDB import deleteRow_PACIENTES, readODONTOGRAMA_DETAILS
 
 Primary = "#C9929B"
 PrimaryBorder = "#E8D5D8"
@@ -92,6 +92,10 @@ class PatientDetailView(QWidget):
         self.examen = readEXAMEN(patient_id) if patient_id else None
         self.remaining = readREMAINING(patient_id) if patient_id else 0.0
         self.remaining = self.remaining if self.remaining is not None else 0.0
+        self.odontograma = readODONTOGRAMA_by_patient(patient_id) if patient_id else None
+        self.odontograma_details = []
+        if self.odontograma:
+            self.odontograma_details = readODONTOGRAMA_DETAILS(self.odontograma[0])
         self.setStyleSheet(f"background-color: {Bg};")
         self._build_ui()
 
@@ -131,6 +135,7 @@ class PatientDetailView(QWidget):
         body_lo.addWidget(self._section_personal())
         body_lo.addWidget(self._section_antecedentes())
         body_lo.addWidget(self._section_examen())
+        body_lo.addWidget(self._section_odontogram())
         body_lo.addWidget(self._section_saldo())
 
         body_lo.addStretch()
@@ -311,6 +316,35 @@ class PatientDetailView(QWidget):
         g.addWidget(_field("PA", self.examen[6] if self.examen else None), 1, 1)
 
         lo.addLayout(g)
+        return frame
+
+    def _section_odontogram(self):
+        frame, lo = _card("Odontograma")
+
+        if not self.odontograma_details:
+            empty = QLabel("Sin odontograma registrado")
+            empty.setFont(QFont("Segoe UI", 12))
+            empty.setStyleSheet(f"color: {Txt2}; background: transparent;")
+            lo.addWidget(empty)
+            return frame
+
+        from views.components.odontogram import OdontogramWidget, TOOL_COLORS, FACE_LABELS
+        odontogram = OdontogramWidget()
+        odontogram.load_data(self.odontograma_details)
+
+        for tw in odontogram._tooth_widgets.values():
+            tw.setEnabled(False)
+            tw.setCursor(Qt.ArrowCursor)
+
+        lo.addWidget(odontogram)
+
+        if self.odontograma and self.odontograma[2]:
+            notes_label = QLabel(f"Notas: {self.odontograma[2]}")
+            notes_label.setFont(QFont("Segoe UI", 11))
+            notes_label.setStyleSheet(f"color: {Txt1}; background: transparent;")
+            notes_label.setWordWrap(True)
+            lo.addWidget(notes_label)
+
         return frame
 
     def _section_saldo(self):

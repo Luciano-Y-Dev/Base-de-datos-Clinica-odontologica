@@ -63,3 +63,21 @@ def existEXAMEN(patientID):
         return cursor.fetchone()[0] > 0
     finally:
         conn.close()
+
+def readODONTOGRAMA_by_patient(patientID):
+    conn = getConnection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM odontograms WHERE patientID = ? ORDER BY ID DESC LIMIT 1", (patientID,))
+        return cursor.fetchone()
+    finally:
+        conn.close()
+
+def existODONTOGRAMA(patientID):
+    conn = getConnection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM odontograms WHERE patientID = ?", (patientID,))
+        return cursor.fetchone()[0] > 0
+    finally:
+        conn.close()
