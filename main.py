@@ -4,6 +4,7 @@ from views.principal_view import PrincipalView
 from views.form_patient import FormPatient
 from views.patient_detail_view import PatientDetailView
 from views.abonos_view import AbonosView
+from views.export_view import ExportView
 from database.createDB import (
     createTable_PACIENTES, createTable_ANTECEDENTES,
     createTable_EXAMEN, createTable_ODONTOGRAMA,
@@ -64,7 +65,8 @@ class MainW(QMainWindow):
             self.abonos = AbonosView(navigate_callback=self.navigate)
             self.setCentralWidget(self.abonos)
         elif action == "export":
-            print("Exportar datos")
+            self.export_view = ExportView(navigate_callback=self.navigate)
+            self.setCentralWidget(self.export_view)
 
     def _on_saved(self):
         self.principal = PrincipalView(navigate_callback=self.navigate)
