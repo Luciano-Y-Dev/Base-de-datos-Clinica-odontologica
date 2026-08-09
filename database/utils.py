@@ -1,11 +1,16 @@
 from .createDB import getConnection
+from .crypto import decrypt_field
 
 def readTable_PACIENTES_ordered():
     conn = getConnection()
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM pacientes ORDER BY entryDate DESC")
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+        return [
+            (r[0], r[1], r[2], r[3], decrypt_field(r[4]), r[5], r[6], r[7], r[8], decrypt_field(r[9]), r[10], r[11])
+            for r in rows
+        ]
     finally:
         conn.close()
 
@@ -24,7 +29,10 @@ def readPACIENTE(patientID):
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM pacientes WHERE patientID = ?", (patientID,))
-        return cursor.fetchone()
+        r = cursor.fetchone()
+        if r:
+            return (r[0], r[1], r[2], r[3], decrypt_field(r[4]), r[5], r[6], r[7], r[8], decrypt_field(r[9]), r[10], r[11])
+        return None
     finally:
         conn.close()
 
@@ -33,7 +41,10 @@ def readANTECEDENTES(patientID):
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM antecedentes_personales WHERE patientID = ?", (patientID,))
-        return cursor.fetchone()
+        r = cursor.fetchone()
+        if r:
+            return (r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15], decrypt_field(r[16]), r[17], r[18], r[19], r[20], r[21])
+        return None
     finally:
         conn.close()
 
@@ -103,7 +114,11 @@ def readPATIENTS_with_remaining():
                OR (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) IS NULL
             ORDER BY p.entryDate DESC
         """)
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+        return [
+            (r[0], r[1], r[2], r[3], decrypt_field(r[4]), r[5], r[6], r[7], r[8], decrypt_field(r[9]), r[10], r[11], r[12])
+            for r in rows
+        ]
     finally:
         conn.close()
 
@@ -119,6 +134,10 @@ def readPATIENTS_paid():
             WHERE (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) = 0
             ORDER BY p.entryDate DESC
         """)
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+        return [
+            (r[0], r[1], r[2], r[3], decrypt_field(r[4]), r[5], r[6], r[7], r[8], decrypt_field(r[9]), r[10], r[11], r[12])
+            for r in rows
+        ]
     finally:
         conn.close()

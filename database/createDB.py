@@ -1,5 +1,6 @@
 import sqlite3 as sql
 import os
+from .crypto import encrypt_field, decrypt_field
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "Clinica.db")
 
@@ -14,15 +15,15 @@ def createTable_PACIENTES():
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS pacientes (
     patientID INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    lastName TEXT,
-    age INTEGER,
-    CI INTEGER UNIQUE,
-    entryDate TEXT,
+    name TEXT NOT NULL,
+    lastName TEXT NOT NULL,
+    age INTEGER NOT NULL,
+    CI TEXT NOT NULL,
+    entryDate TEXT NOT NULL,
     phoneNumber TEXT,
     home TEXT,
     representName TEXT,
-    representCI INTEGER,
+    representCI TEXT,
     consultReason TEXT,
     presentIssues TEXT
 )
@@ -36,7 +37,7 @@ def createRow_PACIENTES(name, lastName, age, CI, entryDate, phoneNumber, home, r
     try:
         cursor = conn.cursor()
         cursor.execute("INSERT INTO pacientes (name, lastName, age, CI, entryDate, phoneNumber, home, representName, representCI, consultReason, presentIssues) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (name, lastName, age, CI, entryDate, phoneNumber, home, representName, representCI, consultReason, presentIssues)
+                        (name, lastName, age, encrypt_field(str(CI)), entryDate, phoneNumber, home, representName, encrypt_field(str(representCI)) if representCI else "", consultReason, presentIssues)
                         )
         conn.commit()
         return cursor.lastrowid
@@ -52,7 +53,10 @@ def readTable_PACIENTES():
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM pacientes")
         rows = cursor.fetchall()
-        return rows
+        return [
+            (r[0], r[1], r[2], r[3], decrypt_field(r[4]), r[5], r[6], r[7], r[8], decrypt_field(r[9]), r[10], r[11])
+            for r in rows
+        ]
     finally:
         conn.close()
 
@@ -61,7 +65,7 @@ def updateRow_PACIENTES(patientID, name, lastName, age, CI, entryDate, phoneNumb
     try:
         cursor = conn.cursor()
         cursor.execute("UPDATE pacientes SET name = ?, lastName = ?, age = ?, CI = ?, entryDate = ?, phoneNumber = ?, home = ?, representName = ?, representCI = ?, consultReason = ?, presentIssues = ? WHERE patientID = ?",
-                        (name, lastName, age, CI, entryDate, phoneNumber, home, representName, representCI, consultReason, presentIssues, patientID))
+                        (name, lastName, age, encrypt_field(str(CI)), entryDate, phoneNumber, home, representName, encrypt_field(str(representCI)) if representCI else "", consultReason, presentIssues, patientID))
         conn.commit()
     except sql.Error as e:
         conn.rollback()
@@ -87,7 +91,7 @@ def createTable_ANTECEDENTES():
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS antecedentes_personales (
     ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    patientID INTEGER UNIQUE,
+    patientID INTEGER NOT NULL UNIQUE,
     earNoseThroat TEXT,
     respiratory TEXT,
     allergy TEXT,
@@ -120,7 +124,7 @@ def createRow_ANTECEDENTES(patientID, earNoseThroat, respiratory, allergy, cardi
     try:
         cursor = conn.cursor()
         cursor.execute("INSERT INTO antecedentes_personales (patientID, earNoseThroat, respiratory, allergy, cardiovascular, gastrointestinal, endocrine, renal, hepatic, neurologic, neoplastic, blood, viral, gynecologic, covid, hiv, surgeries, medications, hepatitisVaccine, covidVaccine, familyHistory) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (patientID, earNoseThroat, respiratory, allergy, cardiovascular, gastrointestinal, endocrine, renal, hepatic, neurologic, neoplastic, blood, viral, gynecologic, covid, hiv, surgeries, medications, hepatitisVaccine, covidVaccine, familyHistory)
+                        (patientID, earNoseThroat, respiratory, allergy, cardiovascular, gastrointestinal, endocrine, renal, hepatic, neurologic, neoplastic, blood, viral, gynecologic, covid, encrypt_field(hiv), surgeries, medications, hepatitisVaccine, covidVaccine, familyHistory)
                         )
         conn.commit()
     except sql.Error as e:
@@ -135,7 +139,10 @@ def readTable_ANTECEDENTES():
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM antecedentes_personales")
         rows = cursor.fetchall()
-        return rows
+        return [
+            (r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15], decrypt_field(r[16]), r[17], r[18], r[19], r[20], r[21])
+            for r in rows
+        ]
     finally:
         conn.close()
 
@@ -144,7 +151,7 @@ def updateRow_ANTECEDENTES(patientID, earNoseThroat, respiratory, allergy, cardi
     try:
         cursor = conn.cursor()
         cursor.execute("UPDATE antecedentes_personales SET earNoseThroat = ?, respiratory = ?, allergy = ?, cardiovascular = ?, gastrointestinal = ?, endocrine = ?, renal = ?, hepatic = ?, neurologic = ?, neoplastic = ?, blood = ?, viral = ?, gynecologic = ?, covid = ?, hiv = ?, surgeries = ?, medications = ?, hepatitisVaccine = ?, covidVaccine = ?, familyHistory = ? WHERE patientID = ?",
-                        (earNoseThroat, respiratory, allergy, cardiovascular, gastrointestinal, endocrine, renal, hepatic, neurologic, neoplastic, blood, viral, gynecologic, covid, hiv, surgeries, medications, hepatitisVaccine, covidVaccine, familyHistory, patientID))
+                        (earNoseThroat, respiratory, allergy, cardiovascular, gastrointestinal, endocrine, renal, hepatic, neurologic, neoplastic, blood, viral, gynecologic, covid, encrypt_field(hiv), surgeries, medications, hepatitisVaccine, covidVaccine, familyHistory, patientID))
         conn.commit()
     except sql.Error as e:
         conn.rollback()
@@ -170,7 +177,7 @@ def createTable_EXAMEN():
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS examen_fisico (
     ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    patientID INTEGER UNIQUE,
+    patientID INTEGER NOT NULL UNIQUE,
     extraoral TEXT,
     intraoralTB TEXT,
     intraoralTD TEXT,
@@ -238,7 +245,7 @@ def createTable_ODONTOGRAMA():
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS odontograms (
     ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    patientID INTEGER,
+    patientID INTEGER NOT NULL,
     notes TEXT,
     FOREIGN KEY (patientID) REFERENCES pacientes(patientID) ON DELETE CASCADE
 )
@@ -303,7 +310,7 @@ def createTable_ODONTOGRAMA_DETAILS():
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS odontogram_details (
     ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    odontogramID INTEGER,
+    odontogramID INTEGER NOT NULL,
     tooth INTEGER,
     face TEXT,
     affected TEXT NOT NULL,
@@ -380,7 +387,7 @@ def createTable_TRATAMIENTO():
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS tratamiento (
     ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    patientID INTEGER,
+    patientID INTEGER NOT NULL,
     diagnosis TEXT,
     treatmentPlan TEXT,
     FOREIGN KEY (patientID) REFERENCES pacientes(patientID) ON DELETE CASCADE
@@ -456,12 +463,12 @@ def createTable_ABONO():
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS abonos (
     ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    patientID INTEGER,
+    patientID INTEGER NOT NULL,
     date TEXT,
     description TEXT,
-    treatmentCost REAL,
-    amount REAL,
-    remaining REAL,
+    treatmentCost REAL NOT NULL DEFAULT 0,
+    amount REAL NOT NULL DEFAULT 0 CHECK (amount >= 0),
+    remaining REAL NOT NULL DEFAULT 0 CHECK (remaining >= 0),
     FOREIGN KEY (patientID) REFERENCES pacientes(patientID) ON DELETE CASCADE
 )
         """
@@ -523,6 +530,95 @@ def deleteRow_ABONO(id):
         cursor = conn.cursor()
         cursor.execute("DELETE FROM abonos WHERE ID = ?", (id,))
         conn.commit()
+    except sql.Error as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+
+def save_patient_atomic(patient_id, name, lastName, age, CI, entryDate, phoneNumber, home, representName, representCI, consultReason, presentIssues, antecedentes_data, examen_data, odontogram_data, abono_data):
+    # Validaciones basicas antes de abrir transaccion
+    if not name or not str(name).strip():
+        raise ValueError("El nombre es obligatorio")
+    if not CI or not str(CI).strip():
+        raise ValueError("La CI es obligatoria")
+    try:
+        int(age)
+    except (TypeError, ValueError):
+        raise ValueError("La edad debe ser un numero entero")
+
+    conn = getConnection()
+    conn.execute("PRAGMA foreign_keys = ON;")
+    try:
+        cursor = conn.cursor()
+
+        # 1. Paciente
+        if patient_id:
+            cursor.execute("UPDATE pacientes SET name = ?, lastName = ?, age = ?, CI = ?, entryDate = ?, phoneNumber = ?, home = ?, representName = ?, representCI = ?, consultReason = ?, presentIssues = ? WHERE patientID = ?",
+                (name, lastName, age, encrypt_field(str(CI)), entryDate, phoneNumber, home, representName, encrypt_field(str(representCI)) if representCI else "", consultReason, presentIssues, patient_id))
+            cid = patient_id
+        else:
+            cursor.execute("INSERT INTO pacientes (name, lastName, age, CI, entryDate, phoneNumber, home, representName, representCI, consultReason, presentIssues) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (name, lastName, age, encrypt_field(str(CI)), entryDate, phoneNumber, home, representName, encrypt_field(str(representCI)) if representCI else "", consultReason, presentIssues))
+            cid = cursor.lastrowid
+
+        # 2. Antecedentes
+        ad = antecedentes_data
+        cursor.execute("SELECT COUNT(*) FROM antecedentes_personales WHERE patientID = ?", (cid,))
+        if cursor.fetchone()[0] > 0:
+            cursor.execute("UPDATE antecedentes_personales SET earNoseThroat = ?, respiratory = ?, allergy = ?, cardiovascular = ?, gastrointestinal = ?, endocrine = ?, renal = ?, hepatic = ?, neurologic = ?, neoplastic = ?, blood = ?, viral = ?, gynecologic = ?, covid = ?, hiv = ?, surgeries = ?, medications = ?, hepatitisVaccine = ?, covidVaccine = ?, familyHistory = ? WHERE patientID = ?",
+                (*ad[:14], encrypt_field(ad[14]), *ad[15:], cid))
+        else:
+            cursor.execute("INSERT INTO antecedentes_personales (patientID, earNoseThroat, respiratory, allergy, cardiovascular, gastrointestinal, endocrine, renal, hepatic, neurologic, neoplastic, blood, viral, gynecologic, covid, hiv, surgeries, medications, hepatitisVaccine, covidVaccine, familyHistory) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (cid, *ad[:14], encrypt_field(ad[14]), *ad[15:]))
+
+        # 3. Examen fisico
+        ed = examen_data
+        cursor.execute("SELECT COUNT(*) FROM examen_fisico WHERE patientID = ?", (cid,))
+        if cursor.fetchone()[0] > 0:
+            cursor.execute("UPDATE examen_fisico SET extraoral = ?, intraoralTB = ?, intraoralTD = ?, periodontal = ?, PA = ? WHERE patientID = ?",
+                (*ed, cid))
+        else:
+            cursor.execute("INSERT INTO examen_fisico (patientID, extraoral, intraoralTB, intraoralTD, periodontal, PA) VALUES (?, ?, ?, ?, ?, ?)",
+                (cid, *ed))
+
+        # 4. Odontograma
+        if odontogram_data and odontogram_data.get("affections"):
+            notes = odontogram_data.get("notes", "")
+            cursor.execute("SELECT ID FROM odontograms WHERE patientID = ? ORDER BY ID DESC LIMIT 1", (cid,))
+            row = cursor.fetchone()
+            if row:
+                odontogram_id = row[0]
+                cursor.execute("UPDATE odontograms SET notes = ? WHERE ID = ?", (notes, odontogram_id))
+            else:
+                cursor.execute("INSERT INTO odontograms (patientID, notes) VALUES (?, ?)", (cid, notes))
+                odontogram_id = cursor.lastrowid
+
+            cursor.execute("DELETE FROM odontogram_details WHERE odontogramID = ?", (odontogram_id,))
+            for aff in odontogram_data["affections"]:
+                cursor.execute("INSERT INTO odontogram_details (odontogramID, tooth, face, affected, description) VALUES (?, ?, ?, ?, ?)",
+                    (odontogram_id, aff["tooth"], aff["face"], aff["affected"], aff["description"]))
+
+        # 5. Abono
+        if abono_data:
+            cost = abono_data.get("cost", 0)
+            amount = abono_data.get("amount", 0)
+            remaining = cost - amount
+            desc = abono_data.get("description", "")
+            from datetime import date
+            today = date.today().isoformat()
+            cursor.execute("SELECT ID FROM abonos WHERE patientID = ? ORDER BY ID DESC LIMIT 1", (cid,))
+            row = cursor.fetchone()
+            if row:
+                cursor.execute("UPDATE abonos SET date = ?, description = ?, treatmentCost = ?, amount = ?, remaining = ? WHERE ID = ?",
+                    (today, desc, cost, amount, remaining, row[0]))
+            else:
+                cursor.execute("INSERT INTO abonos (patientID, date, description, treatmentCost, amount, remaining) VALUES (?, ?, ?, ?, ?, ?)",
+                    (cid, today, desc, cost, amount, remaining))
+
+        conn.commit()
+        return cid
     except sql.Error as e:
         conn.rollback()
         raise e

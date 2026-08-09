@@ -7,17 +7,10 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 from database.utils import (
     readPACIENTE, readANTECEDENTES, readEXAMEN,
-    existANTECEDENTES, existEXAMEN,
-    readODONTOGRAMA_by_patient, existODONTOGRAMA
+    readODONTOGRAMA_by_patient
 )
 from database.createDB import (
-    createRow_PACIENTES, updateRow_PACIENTES,
-    createRow_ANTECEDENTES, updateRow_ANTECEDENTES,
-    createRow_EXAMEN, updateRow_EXAMEN,
-    createRow_ODONTOGRAMA, updateRow_ODONTOGRAMA,
-    createRow_ODONTOGRAMA_DETAILS, deleteRow_ODONTOGRAMA_DETAILS,
-    readODONTOGRAMA_DETAILS,
-    createRow_ABONO, readABONO, updateRow_ABONO
+    save_patient_atomic, readODONTOGRAMA_DETAILS
 )
 from views.components.odontogram import OdontogramWidget
 
@@ -485,73 +478,46 @@ class FormPatient(QWidget):
             motiv = self.motivF.text().strip()
             sympt = self.symptF.toPlainText().strip()
 
-            if self.is_edit:
-                updateRow_PACIENTES(self.patient_id, name, last, age, ci,
-                    date, phone, home, rep_name, rep_ci, motiv, sympt)
-                cid = self.patient_id
-            else:
-                cid = createRow_PACIENTES(name, last, age, ci,
-                    date, phone, home, rep_name, rep_ci, motiv, sympt)
-
+            # Preparar antecedentes
             ad = [None] * 20
             for idx, (fname, cb, tf) in enumerate(self.ant_checks):
                 if cb.isChecked():
                     ad[idx] = f"Si - {tf.toPlainText()}" if tf.toPlainText() else "Si"
-            if existANTECEDENTES(cid):
-                updateRow_ANTECEDENTES(cid, *ad)
-            else:
-                createRow_ANTECEDENTES(cid, *ad)
 
+            # Preparar examen
             ed = [
                 self.extF.text(), self.itbF.text(), self.itdF.text(),
                 self.periF.text(), self.paF.text()
             ]
-            if existEXAMEN(cid):
-                updateRow_EXAMEN(cid, *ed)
-            else:
-                createRow_EXAMEN(cid, *ed)
 
+            # Preparar odontograma
             od_data = self.odontogram_widget.get_data()
+            odontogram_data = None
             if od_data["affections"]:
-                notes = ""
-                if existODONTOGRAMA(cid):
-                    od_header = readODONTOGRAMA_by_patient(cid)
-                    odontogram_id = od_header[0]
-                    updateRow_ODONTOGRAMA(odontogram_id, notes)
-                else:
-                    odontogram_id = createRow_ODONTOGRAMA(cid, notes)
+                odontogram_data = {"notes": "", "affections": od_data["affections"]}
 
-                existing_details = readODONTOGRAMA_DETAILS(odontogram_id)
-                for detail in existing_details:
-                    deleteRow_ODONTOGRAMA_DETAILS(detail[0])
-
-                for aff in od_data["affections"]:
-                    createRow_ODONTOGRAMA_DETAILS(
-                        odontogram_id,
-                        aff["tooth"],
-                        aff["face"],
-                        aff["affected"],
-                        aff["description"],
-                    )
-
+            # Preparar abono
+            abono_data = None
             cost_text = self.costF.text().strip()
-            abono_text = self.abonoF.text().strip()
-            desc_abono = self.descAbonoF.text().strip()
             if cost_text:
                 try:
                     cost = float(cost_text)
+                    abono_text = self.abonoF.text().strip()
                     amount = float(abono_text) if abono_text else 0.0
-                    remaining = cost - amount
-                    from datetime import date
-                    today = date.today().isoformat()
-                    abonos_existentes = readABONO(cid)
-                    if abonos_existentes:
-                        last_id = abonos_existentes[-1][0]
-                        updateRow_ABONO(last_id, today, desc_abono, cost, amount, remaining)
-                    else:
-                        createRow_ABONO(cid, today, desc_abono, cost, amount, remaining)
+                    abono_data = {
+                        "cost": cost,
+                        "amount": amount,
+                        "description": self.descAbonoF.text().strip()
+                    }
                 except ValueError:
                     pass
+
+            # Guardar todo atomicamente
+            save_patient_atomic(
+                self.patient_id, name, last, age, ci,
+                date, phone, home, rep_name, rep_ci, motiv, sympt,
+                ad, ed, odontogram_data, abono_data
+            )
 
             self.saved.emit()
             if self.navigate_callback:
