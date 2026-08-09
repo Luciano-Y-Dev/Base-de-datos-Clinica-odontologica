@@ -4,6 +4,12 @@ from views.principal_view import PrincipalView
 from views.form_patient import FormPatient
 from views.patient_detail_view import PatientDetailView
 from views.abonos_view import AbonosView
+from database.createDB import (
+    createTable_PACIENTES, createTable_ANTECEDENTES,
+    createTable_EXAMEN, createTable_ODONTOGRAMA,
+    createTable_ODONTOGRAMA_DETAILS, createTable_TRATAMIENTO,
+    createTable_ABONO
+)
 
 
 class MainW(QMainWindow):
@@ -66,6 +72,14 @@ class MainW(QMainWindow):
 
 
 def main():
+    createTable_PACIENTES()
+    createTable_ANTECEDENTES()
+    createTable_EXAMEN()
+    createTable_ODONTOGRAMA()
+    createTable_ODONTOGRAMA_DETAILS()
+    createTable_TRATAMIENTO()
+    createTable_ABONO()
+
     app = QApplication(sys.argv)
     window = MainW()
     window.show()

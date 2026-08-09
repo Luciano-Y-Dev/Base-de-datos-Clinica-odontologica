@@ -1,5 +1,5 @@
 from __future__ import annotations
-from database.createDB import createRow_ABONO
+from database.createDB import createRow_ABONO, readABONO
 from database.utils import readABONOS_ordered, readPATIENTS_with_remaining, readPATIENTS_paid
 
 
@@ -16,8 +16,8 @@ def add_abono(patient_id: int, amount_text: str, date: str, description: str) ->
         raise ValueError("El monto no puede ser negativo.")
 
     abonos = readABONOS_ordered(patient_id)
-    last_remaining = abonos[0][6] if abonos and abonos[0][6] is not None else 0.0
-    treatment_cost = abonos[0][4] if abonos else 0.0
+    last_remaining = abonos[0].remaining if abonos and abonos[0].remaining is not None else 0.0
+    treatment_cost = abonos[0].treatmentCost if abonos else 0.0
     new_remaining = last_remaining - amount
 
     if new_remaining < 0:
@@ -37,3 +37,7 @@ def get_patients_with_remaining() -> list[tuple]:
 
 def get_patients_paid() -> list[tuple]:
     return readPATIENTS_paid()
+
+
+def get_patient_abono(patient_id: int) -> list[tuple]:
+    return readABONO(patient_id)

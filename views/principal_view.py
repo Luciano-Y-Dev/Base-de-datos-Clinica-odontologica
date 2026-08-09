@@ -4,8 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from database.utils import readTable_PACIENTES_ordered
-from database.createDB import deleteRow_PACIENTES
+from services.patient_service import get_patients_ordered, delete_patient
 from views.components.patient_card import PatientCard
 
 Primary = "#C9929B"
@@ -150,7 +149,7 @@ class PrincipalView(QWidget):
 
         content.addSpacing(20)
 
-        patients = readTable_PACIENTES_ordered()
+        patients = get_patients_ordered()
 
         if patients:
             add_row = QHBoxLayout()
@@ -274,7 +273,7 @@ class PrincipalView(QWidget):
 
         if msg.exec() == QMessageBox.Yes:
             try:
-                deleteRow_PACIENTES(patient_id)
+                delete_patient(patient_id)
                 if self.navigate_callback:
                     self.navigate_callback("principal")
             except Exception as ex:

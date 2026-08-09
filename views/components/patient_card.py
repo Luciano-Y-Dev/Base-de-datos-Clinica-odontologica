@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from database.utils import readREMAINING
+from services.patient_service import get_patient_remaining
 
 Primary = "#C9929B"
 Second = "#D4758C"
@@ -22,7 +22,7 @@ class PatientCard(QFrame):
         super().__init__(parent)
         self.patient = patient
         self.navigate_callback = navigate_callback
-        self.patient_id = patient[0]
+        self.patient_id = patient.id
         self.setCursor(Qt.PointingHandCursor)
 
         self.setStyleSheet(f"""
@@ -46,17 +46,17 @@ class PatientCard(QFrame):
         info = QVBoxLayout()
         info.setSpacing(5)
 
-        name = QLabel(f"{patient[1]} {patient[2]}")
+        name = QLabel(f"{patient.name} {patient.lastName}")
         name.setFont(QFont("Segoe UI", 13, QFont.Weight.DemiBold))
         name.setStyleSheet(f"color: {Txt1}; background: transparent; border: none;")
         info.addWidget(name)
 
-        meta = QLabel(f"{patient[3]} años  ·  {patient[5]}")
+        meta = QLabel(f"{patient.age} años  ·  {patient.entryDate}")
         meta.setFont(QFont("Segoe UI", 10))
         meta.setStyleSheet(f"color: {Txt2}; background: transparent; border: none;")
         info.addWidget(meta)
 
-        motive = patient[10] if patient[10] else ""
+        motive = patient.consultReason if patient.consultReason else ""
         if motive:
             motive_lbl = QLabel(motive)
             motive_lbl.setFont(QFont("Segoe UI", 10))
@@ -66,7 +66,7 @@ class PatientCard(QFrame):
 
         layout.addLayout(info, 1)
 
-        remaining = readREMAINING(self.patient_id)
+        remaining = get_patient_remaining(self.patient_id)
         remaining = remaining if remaining is not None else 0.0
 
         right_layout = QVBoxLayout()

@@ -474,6 +474,8 @@ class OdontogramWidget(QWidget):
             (TOOL_COLORS[TOOL_CARIES][0], TOOL_COLORS[TOOL_CARIES][0], "Caries"),
             (TOOL_COLORS[TOOL_RESINA][0], TOOL_COLORS[TOOL_RESINA][0], "Resina"),
             (TOOL_COLORS[TOOL_AUSENTE][0], TOOL_COLORS[TOOL_AUSENTE][0], "Ausente"),
+            (TOOL_COLORS[TOOL_ENDODONCIA][0], TOOL_COLORS[TOOL_ENDODONCIA][0], "Endodoncia"),
+            (TOOL_COLORS[TOOL_CORONA][0], TOOL_COLORS[TOOL_CORONA][0], "Corona"),
         ]
         for bg, border, text in items:
             row = QHBoxLayout()

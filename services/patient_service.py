@@ -1,6 +1,10 @@
 from __future__ import annotations
 from typing import Any, Protocol
-from database.createDB import save_patient_atomic, deleteRow_PACIENTES
+from database.createDB import save_patient_atomic, deleteRow_PACIENTES, readODONTOGRAMA_DETAILS
+from database.utils import (
+    readPACIENTE, readANTECEDENTES, readEXAMEN,
+    readODONTOGRAMA_by_patient, readREMAINING, readTable_PACIENTES_ordered
+)
 
 
 class CheckBox(Protocol):
@@ -88,3 +92,32 @@ def save_patient(
 def delete_patient(patient_id: int) -> bool:
     deleteRow_PACIENTES(patient_id)
     return True
+
+
+def get_patient(patient_id: int):
+    return readPACIENTE(patient_id)
+
+
+def get_patient_antecedentes(patient_id: int):
+    return readANTECEDENTES(patient_id)
+
+
+def get_patient_examen(patient_id: int):
+    return readEXAMEN(patient_id)
+
+
+def get_patient_odontogram(patient_id: int):
+    return readODONTOGRAMA_by_patient(patient_id)
+
+
+def get_odontogram_details(odontogram_id: int):
+    return readODONTOGRAMA_DETAILS(odontogram_id)
+
+
+def get_patient_remaining(patient_id: int) -> float:
+    remaining = readREMAINING(patient_id)
+    return remaining if remaining is not None else 0.0
+
+
+def get_patients_ordered():
+    return readTable_PACIENTES_ordered()

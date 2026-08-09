@@ -5,12 +5,11 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from database.utils import (
-    readPACIENTE, readANTECEDENTES, readEXAMEN,
-    readODONTOGRAMA_by_patient
+from services.patient_service import (
+    get_patient, get_patient_antecedentes, get_patient_examen,
+    get_patient_odontogram, get_odontogram_details, save_patient
 )
-from database.createDB import readODONTOGRAMA_DETAILS
-from services.patient_service import save_patient, delete_patient
+from services.abono_service import get_patient_abono
 from views.components.odontogram import OdontogramWidget
 
 Primary = "#C9929B"
@@ -104,13 +103,13 @@ class FormPatient(QWidget):
 
     def _load_data(self):
         if self.is_edit:
-            self.paciente = readPACIENTE(self.patient_id)
-            self.antecedentes = readANTECEDENTES(self.patient_id)
-            self.examen = readEXAMEN(self.patient_id)
-            self.odontograma = readODONTOGRAMA_by_patient(self.patient_id)
+            self.paciente = get_patient(self.patient_id)
+            self.antecedentes = get_patient_antecedentes(self.patient_id)
+            self.examen = get_patient_examen(self.patient_id)
+            self.odontograma = get_patient_odontogram(self.patient_id)
             self.odontograma_details = []
             if self.odontograma:
-                self.odontograma_details = readODONTOGRAMA_DETAILS(self.odontograma[0])
+                self.odontograma_details = get_odontogram_details(self.odontograma.id)
         else:
             self.paciente = None
             self.antecedentes = None
@@ -229,17 +228,17 @@ class FormPatient(QWidget):
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
 
-        self.nameF = _make_field("Nombre(es)", self.paciente[1] if self.paciente else "")
-        self.lastF = _make_field("Apellido(s)", self.paciente[2] if self.paciente else "")
-        self.ageF = _make_field("Edad", str(self.paciente[3]) if self.paciente else "")
-        self.ciF = _make_field("CI", str(self.paciente[4]) if self.paciente else "")
-        self.dateF = _make_field("Fecha de Ingreso", self.paciente[5] if self.paciente else "")
-        self.phoneF = _make_field("Teléfono", self.paciente[6] if self.paciente else "")
-        self.homeF = _make_field("Dirección", self.paciente[7] if self.paciente else "")
-        self.repNameF = _make_field("Representante (Si aplica)", self.paciente[8] if self.paciente else "")
-        self.repCiF = _make_field("CI Representante (Si aplica)", str(self.paciente[9]) if self.paciente and self.paciente[9] else "")
-        self.motivF = _make_field("Motivo de Consulta", self.paciente[10] if self.paciente else "")
-        self.symptF = _make_field("Sintomatología Actual", self.paciente[11] if self.paciente else "", multiline=True)
+        self.nameF = _make_field("Nombre(es)", self.paciente.name if self.paciente else "")
+        self.lastF = _make_field("Apellido(s)", self.paciente.lastName if self.paciente else "")
+        self.ageF = _make_field("Edad", str(self.paciente.age) if self.paciente else "")
+        self.ciF = _make_field("CI", str(self.paciente.CI) if self.paciente else "")
+        self.dateF = _make_field("Fecha de Ingreso", self.paciente.entryDate if self.paciente else "")
+        self.phoneF = _make_field("Teléfono", self.paciente.phoneNumber if self.paciente else "")
+        self.homeF = _make_field("Dirección", self.paciente.home if self.paciente else "")
+        self.repNameF = _make_field("Representante (Si aplica)", self.paciente.representName if self.paciente else "")
+        self.repCiF = _make_field("CI Representante (Si aplica)", str(self.paciente.representCI) if self.paciente and self.paciente.representCI else "")
+        self.motivF = _make_field("Motivo de Consulta", self.paciente.consultReason if self.paciente else "")
+        self.symptF = _make_field("Sintomatología Actual", self.paciente.presentIssues if self.paciente else "", multiline=True)
 
         grid.addWidget(self.nameF, 0, 0)
         grid.addWidget(self.lastF, 0, 1)
@@ -274,7 +273,7 @@ class FormPatient(QWidget):
 
         self.ant_checks = []
         for i, (label, fname) in enumerate(ANTECEDENT_FIELDS):
-            val = self.antecedentes[i + 2] if self.antecedentes else None
+            val = getattr(self.antecedentes, fname) if self.antecedentes else None
             checked = val is not None and val != ""
             ctxt = val[5:] if checked and val and val.startswith("Si - ") else ""
 
@@ -353,11 +352,11 @@ class FormPatient(QWidget):
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
 
-        self.extF = _make_field("Extraoral", self.examen[2] if self.examen else "")
-        self.itbF = _make_field("Intraoral TB", self.examen[3] if self.examen else "")
-        self.itdF = _make_field("Intraoral TD", self.examen[4] if self.examen else "")
-        self.periF = _make_field("Periodontal", self.examen[5] if self.examen else "")
-        self.paF = _make_field("PA", self.examen[6] if self.examen else "")
+        self.extF = _make_field("Extraoral", self.examen.extraoral if self.examen else "")
+        self.itbF = _make_field("Intraoral TB", self.examen.intraoralTB if self.examen else "")
+        self.itdF = _make_field("Intraoral TD", self.examen.intraoralTD if self.examen else "")
+        self.periF = _make_field("Periodontal", self.examen.periodontal if self.examen else "")
+        self.paF = _make_field("PA", self.examen.PA if self.examen else "")
 
         grid.addWidget(self.extF, 0, 0, 1, 2)
         grid.addWidget(self.itbF, 1, 0)
@@ -416,12 +415,12 @@ class FormPatient(QWidget):
         grid.addWidget(self.descAbonoF, 1, 0, 1, 2)
 
         if self.is_edit and self.patient_id:
-            abonos = readABONO(self.patient_id)
+            abonos = get_patient_abono(self.patient_id)
             if abonos:
                 last = abonos[-1]
-                self.costF.setText(str(last[4]) if last[4] else "")
-                self.abonoF.setText(str(last[5]) if last[5] else "")
-                self.descAbonoF.setText(last[3] if last[3] else "")
+                self.costF.setText(str(last.treatmentCost) if last.treatmentCost else "")
+                self.abonoF.setText(str(last.amount) if last.amount else "")
+                self.descAbonoF.setText(last.description if last.description else "")
 
         card_layout.addLayout(grid)
         layout.addWidget(card)

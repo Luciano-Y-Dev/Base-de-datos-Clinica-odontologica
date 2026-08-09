@@ -4,8 +4,12 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from database.utils import readPACIENTE, readANTECEDENTES, readEXAMEN, readREMAINING, readODONTOGRAMA_by_patient, readABONOS_ordered
-from database.createDB import deleteRow_PACIENTES, readODONTOGRAMA_DETAILS
+from services.patient_service import (
+    get_patient, get_patient_antecedentes, get_patient_examen,
+    get_patient_odontogram, get_odontogram_details, get_patient_remaining,
+    delete_patient
+)
+from services.abono_service import get_patient_abonos
 
 Primary = "#C9929B"
 PrimaryBorder = "#E8D5D8"
@@ -87,15 +91,14 @@ class PatientDetailView(QWidget):
         super().__init__(parent)
         self.patient_id = patient_id
         self.navigate_callback = navigate_callback
-        self.paciente = readPACIENTE(patient_id) if patient_id else None
-        self.antecedentes = readANTECEDENTES(patient_id) if patient_id else None
-        self.examen = readEXAMEN(patient_id) if patient_id else None
-        self.remaining = readREMAINING(patient_id) if patient_id else 0.0
-        self.remaining = self.remaining if self.remaining is not None else 0.0
-        self.odontograma = readODONTOGRAMA_by_patient(patient_id) if patient_id else None
+        self.paciente = get_patient(patient_id) if patient_id else None
+        self.antecedentes = get_patient_antecedentes(patient_id) if patient_id else None
+        self.examen = get_patient_examen(patient_id) if patient_id else None
+        self.remaining = get_patient_remaining(patient_id) if patient_id else 0.0
+        self.odontograma = get_patient_odontogram(patient_id) if patient_id else None
         self.odontograma_details = []
         if self.odontograma:
-            self.odontograma_details = readODONTOGRAMA_DETAILS(self.odontograma[0])
+            self.odontograma_details = get_odontogram_details(self.odontograma.id)
         self.setStyleSheet(f"background-color: {pale_pink};")
         self._build_ui()
 
@@ -164,7 +167,7 @@ class PatientDetailView(QWidget):
         lo.addSpacing(24)
 
         if self.paciente:
-            name = f"{self.paciente[1]} {self.paciente[2]}"
+            name = f"{self.paciente.name} {self.paciente.lastName}"
         else:
             name = ""
         title = QLabel(name)
@@ -175,7 +178,7 @@ class PatientDetailView(QWidget):
         lo.addStretch()
 
         if self.paciente:
-            age = QLabel(f"{self.paciente[3]} años")
+            age = QLabel(f"{self.paciente.age} años")
             age.setFont(QFont("Segoe UI", 13))
             age.setStyleSheet(f"color: {Txt2}; background: transparent;")
             lo.addWidget(age)
@@ -185,7 +188,7 @@ class PatientDetailView(QWidget):
             sep.setStyleSheet(f"color: {PrimaryBorder}; background: transparent;")
             lo.addWidget(sep)
 
-            ci = QLabel(f"CI: {self.paciente[4]}")
+            ci = QLabel(f"CI: {self.paciente.CI}")
             ci.setFont(QFont("Segoe UI", 13))
             ci.setStyleSheet(f"color: {Txt2}; background: transparent;")
             lo.addWidget(ci)
@@ -227,26 +230,26 @@ class PatientDetailView(QWidget):
         g.setColumnStretch(1, 1)
         g.setColumnStretch(2, 1)
 
-        g.addWidget(_field("Nombre", self.paciente[1]), 0, 0)
-        g.addWidget(_field("Apellido", self.paciente[2]), 0, 1)
-        g.addWidget(_field("Edad", f"{self.paciente[3]} años"), 0, 2)
-        g.addWidget(_field("CI", self.paciente[4]), 1, 0)
-        g.addWidget(_field("Teléfono", self.paciente[6]), 1, 1)
-        g.addWidget(_field("Fecha de ingreso", self.paciente[5]), 1, 2)
-        g.addWidget(_field("Dirección", self.paciente[7]), 2, 0, 1, 3)
-        g.addWidget(_field("Representante", self.paciente[8]), 3, 0)
-        g.addWidget(_field("CI Rep.", self.paciente[9] if self.paciente[9] else None), 3, 1)
+        g.addWidget(_field("Nombre", self.paciente.name), 0, 0)
+        g.addWidget(_field("Apellido", self.paciente.lastName), 0, 1)
+        g.addWidget(_field("Edad", f"{self.paciente.age} años"), 0, 2)
+        g.addWidget(_field("CI", self.paciente.CI), 1, 0)
+        g.addWidget(_field("Teléfono", self.paciente.phoneNumber), 1, 1)
+        g.addWidget(_field("Fecha de ingreso", self.paciente.entryDate), 1, 2)
+        g.addWidget(_field("Dirección", self.paciente.home), 2, 0, 1, 3)
+        g.addWidget(_field("Representante", self.paciente.representName), 3, 0)
+        g.addWidget(_field("CI Rep.", self.paciente.representCI if self.paciente.representCI else None), 3, 1)
 
         lo.addLayout(g)
 
-        lo.addWidget(_field("Motivo de consulta", self.paciente[10]))
+        lo.addWidget(_field("Motivo de consulta", self.paciente.consultReason))
 
-        if self.paciente[11]:
+        if self.paciente.presentIssues:
             st = QLabel("Sintomatología")
             st.setFont(QFont("Segoe UI", 11))
             st.setStyleSheet(f"color: {Txt2}; background: transparent;")
             lo.addWidget(st)
-            stxt = QLabel(self.paciente[11])
+            stxt = QLabel(self.paciente.presentIssues)
             stxt.setFont(QFont("Segoe UI", 12))
             stxt.setStyleSheet(f"color: {Txt1}; background: transparent;")
             stxt.setWordWrap(True)
@@ -260,7 +263,7 @@ class PatientDetailView(QWidget):
         items = []
         for label, fname in ANTECEDENT_LABELS:
             idx = ANTECEDENT_LABELS.index((label, fname))
-            val = self.antecedentes[idx + 2] if self.antecedentes else None
+            val = getattr(self.antecedentes, fname) if self.antecedentes else None
             if val and val != "":
                 display = val[5:] if val.startswith("Si - ") else "Sí"
                 items.append((label, display))
@@ -314,11 +317,11 @@ class PatientDetailView(QWidget):
         g.setColumnStretch(1, 1)
         g.setColumnStretch(2, 1)
 
-        g.addWidget(_field("Extraoral", self.examen[2] if self.examen else None), 0, 0)
-        g.addWidget(_field("Intraoral TB", self.examen[3] if self.examen else None), 0, 1)
-        g.addWidget(_field("Intraoral TD", self.examen[4] if self.examen else None), 0, 2)
-        g.addWidget(_field("Periodontal", self.examen[5] if self.examen else None), 1, 0)
-        g.addWidget(_field("PA", self.examen[6] if self.examen else None), 1, 1)
+        g.addWidget(_field("Extraoral", self.examen.extraoral if self.examen else None), 0, 0)
+        g.addWidget(_field("Intraoral TB", self.examen.intraoralTB if self.examen else None), 0, 1)
+        g.addWidget(_field("Intraoral TD", self.examen.intraoralTD if self.examen else None), 0, 2)
+        g.addWidget(_field("Periodontal", self.examen.periodontal if self.examen else None), 1, 0)
+        g.addWidget(_field("PA", self.examen.PA if self.examen else None), 1, 1)
 
         lo.addLayout(g)
         return frame
@@ -343,8 +346,8 @@ class PatientDetailView(QWidget):
 
         lo.addWidget(odontogram)
 
-        if self.odontograma and self.odontograma[2]:
-            notes_label = QLabel(f"Notas: {self.odontograma[2]}")
+        if self.odontograma and self.odontograma.notes:
+            notes_label = QLabel(f"Notas: {self.odontograma.notes}")
             notes_label.setFont(QFont("Segoe UI", 11))
             notes_label.setStyleSheet(f"color: {Txt1}; background: transparent;")
             notes_label.setWordWrap(True)
@@ -365,10 +368,10 @@ class PatientDetailView(QWidget):
 
         lo.addSpacing(12)
 
-        abonos = readABONOS_ordered(self.patient_id) if self.patient_id else []
+        abonos = get_patient_abonos(self.patient_id) if self.patient_id else []
         if abonos:
             for a in abonos:
-                row = QLabel(f"{a[2] or '—'}  |  ${a[5]:.2f}  |  {a[3] or '—'}  |  Resta: ${a[6]:.2f}")
+                row = QLabel(f"{a.date or '—'}  |  ${a.amount:.2f}  |  {a.description or '—'}  |  Resta: ${a.remaining:.2f}")
                 row.setFont(QFont("Segoe UI", 10))
                 row.setStyleSheet(f"color: {Txt2}; background: transparent;")
                 lo.addWidget(row)
@@ -384,13 +387,13 @@ class PatientDetailView(QWidget):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Question)
         msg.setWindowTitle("Confirmar eliminación")
-        msg.setText(f"¿Eliminar a {self.paciente[1]} {self.paciente[2]}?")
+        msg.setText(f"¿Eliminar a {self.paciente.name} {self.paciente.lastName}?")
         msg.setInformativeText("Esta acción no se puede deshacer.")
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg.setDefaultButton(QMessageBox.No)
         if msg.exec() == QMessageBox.Yes:
             try:
-                deleteRow_PACIENTES(self.patient_id)
+                delete_patient(self.patient_id)
                 if self.navigate_callback:
                     self.navigate_callback("principal")
             except Exception as ex:

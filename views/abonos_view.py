@@ -188,8 +188,8 @@ class AbonosView(QWidget):
             return
 
         for p in patients:
-            pid = p[0]
-            remaining = p[-1] if p[-1] is not None else 0.0
+            pid = p.id
+            remaining = p.remaining if p.remaining is not None else 0.0
 
             card = QFrame()
             card.setCursor(Qt.PointingHandCursor)
@@ -207,7 +207,7 @@ class AbonosView(QWidget):
             card_lo.setContentsMargins(12, 10, 12, 10)
             card_lo.setSpacing(2)
 
-            name = QLabel(f"{p[1]} {p[2]}")
+            name = QLabel(f"{p.name} {p.lastName}")
             name.setFont(QFont("Segoe UI", 11, QFont.Weight.DemiBold))
             name.setStyleSheet(f"color: {Txt1}; background: transparent;")
             card_lo.addWidget(name)
@@ -398,9 +398,9 @@ class AbonosView(QWidget):
 
         patients = get_patients_with_remaining() if self.current_tab == "pending" else get_patients_paid()
         for p in patients:
-            if p[0] == patient_id:
-                self.detail_title.setText(f"{p[1]} {p[2]}")
-                remaining = p[-1] if p[-1] is not None else 0.0
+            if p.id == patient_id:
+                self.detail_title.setText(f"{p.name} {p.lastName}")
+                remaining = p.remaining if p.remaining is not None else 0.0
                 if self.current_tab == "paid":
                     self.balance_label.setText("Cuenta saldada")
                     self.balance_label.setStyleSheet("color: #4CAF50; background: transparent;")
@@ -440,22 +440,22 @@ class AbonosView(QWidget):
             row_lo.setContentsMargins(12, 8, 12, 8)
             row_lo.setSpacing(12)
 
-            date_lbl = QLabel(a[2] if a[2] else "—")
+            date_lbl = QLabel(a.date if a.date else "—")
             date_lbl.setFont(QFont("Segoe UI", 10))
             date_lbl.setStyleSheet(f"color: {Txt2}; background: transparent;")
             row_lo.addWidget(date_lbl, 1)
 
-            desc_lbl = QLabel(a[3] if a[3] else "—")
+            desc_lbl = QLabel(a.description if a.description else "—")
             desc_lbl.setFont(QFont("Segoe UI", 10))
             desc_lbl.setStyleSheet(f"color: {Txt1}; background: transparent;")
             row_lo.addWidget(desc_lbl, 2)
 
-            amt_lbl = QLabel(f"${a[5]:.2f}" if a[5] else "$0.00")
+            amt_lbl = QLabel(f"${a.amount:.2f}" if a.amount else "$0.00")
             amt_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
             amt_lbl.setStyleSheet(f"color: {Second}; background: transparent;")
             row_lo.addWidget(amt_lbl, 1)
 
-            rem_lbl = QLabel(f"${a[6]:.2f}" if a[6] else "$0.00")
+            rem_lbl = QLabel(f"${a.remaining:.2f}" if a.remaining else "$0.00")
             rem_lbl.setFont(QFont("Segoe UI", 10))
             rem_lbl.setStyleSheet(f"color: {Txt1}; background: transparent;")
             rem_lbl.setAlignment(Qt.AlignRight)
