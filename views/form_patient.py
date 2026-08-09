@@ -9,9 +9,8 @@ from database.utils import (
     readPACIENTE, readANTECEDENTES, readEXAMEN,
     readODONTOGRAMA_by_patient
 )
-from database.createDB import (
-    save_patient_atomic, readODONTOGRAMA_DETAILS
-)
+from database.createDB import readODONTOGRAMA_DETAILS
+from services.patient_service import save_patient, delete_patient
 from views.components.odontogram import OdontogramWidget
 
 Primary = "#C9929B"
@@ -442,86 +441,32 @@ class FormPatient(QWidget):
 
     def _save(self):
         try:
-            name = self.nameF.text().strip()
-            last = self.lastF.text().strip()
-
-            if not name:
-                QMessageBox.warning(self, "Campo requerido", "El nombre es obligatorio.")
-                return
-
-            age_text = self.ageF.text().strip()
-            if not age_text:
-                QMessageBox.warning(self, "Campo requerido", "La edad es obligatoria.")
-                return
-            try:
-                age = int(age_text)
-            except ValueError:
-                QMessageBox.warning(self, "Dato inválido", "La edad debe ser un número entero.")
-                return
-
-            ci_text = self.ciF.text().strip()
-            if not ci_text:
-                QMessageBox.warning(self, "Campo requerido", "La CI es obligatoria.")
-                return
-            try:
-                ci = int(ci_text)
-            except ValueError:
-                QMessageBox.warning(self, "Dato inválido", "La CI debe ser un número entero.")
-                return
-
-            date = self.dateF.text().strip()
-            phone = self.phoneF.text().strip()
-            home = self.homeF.text().strip()
-            rep_name = self.repNameF.text().strip()
-            rep_ci_text = self.repCiF.text().strip()
-            rep_ci = int(rep_ci_text) if rep_ci_text else 0
-            motiv = self.motivF.text().strip()
-            sympt = self.symptF.toPlainText().strip()
-
-            # Preparar antecedentes
-            ad = [None] * 20
-            for idx, (fname, cb, tf) in enumerate(self.ant_checks):
-                if cb.isChecked():
-                    ad[idx] = f"Si - {tf.toPlainText()}" if tf.toPlainText() else "Si"
-
-            # Preparar examen
-            ed = [
-                self.extF.text(), self.itbF.text(), self.itdF.text(),
-                self.periF.text(), self.paF.text()
-            ]
-
-            # Preparar odontograma
-            od_data = self.odontogram_widget.get_data()
-            odontogram_data = None
-            if od_data["affections"]:
-                odontogram_data = {"notes": "", "affections": od_data["affections"]}
-
-            # Preparar abono
-            abono_data = None
-            cost_text = self.costF.text().strip()
-            if cost_text:
-                try:
-                    cost = float(cost_text)
-                    abono_text = self.abonoF.text().strip()
-                    amount = float(abono_text) if abono_text else 0.0
-                    abono_data = {
-                        "cost": cost,
-                        "amount": amount,
-                        "description": self.descAbonoF.text().strip()
-                    }
-                except ValueError:
-                    pass
-
-            # Guardar todo atomicamente
-            save_patient_atomic(
-                self.patient_id, name, last, age, ci,
-                date, phone, home, rep_name, rep_ci, motiv, sympt,
-                ad, ed, odontogram_data, abono_data
-            )
-
+            form_data = {
+                "name": self.nameF.text().strip(),
+                "lastName": self.lastF.text().strip(),
+                "age": self.ageF.text().strip(),
+                "CI": self.ciF.text().strip(),
+                "entryDate": self.dateF.text().strip(),
+                "phoneNumber": self.phoneF.text().strip(),
+                "home": self.homeF.text().strip(),
+                "representName": self.repNameF.text().strip(),
+                "representCI": self.repCiF.text().strip(),
+                "consultReason": self.motivF.text().strip(),
+                "presentIssues": self.symptF.toPlainText().strip(),
+                "extraoral": self.extF.text(),
+                "intraoralTB": self.itbF.text(),
+                "intraoralTD": self.itdF.text(),
+                "periodontal": self.periF.text(),
+                "PA": self.paF.text(),
+                "cost": self.costF.text().strip(),
+                "abono": self.abonoF.text().strip(),
+                "descAbono": self.descAbonoF.text().strip(),
+            }
+            save_patient(self.patient_id, form_data, self.ant_checks, self.odontogram_widget)
             self.saved.emit()
             if self.navigate_callback:
                 self.navigate_callback("principal")
-
+        except ValueError as ex:
+            QMessageBox.warning(self, "Error de validación", str(ex))
         except Exception as ex:
             QMessageBox.critical(self, "Error al guardar", f"No se pudo guardar el registro:\n{ex}")

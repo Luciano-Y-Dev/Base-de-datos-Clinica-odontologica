@@ -4,8 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QDate
 from PySide6.QtGui import QFont
-from database.utils import readPATIENTS_with_remaining, readPATIENTS_paid, readABONOS_ordered
-from database.createDB import createRow_ABONO
+from services.abono_service import add_abono, get_patient_abonos, get_patients_with_remaining, get_patients_paid
 
 Primary = "#C9929B"
 PrimaryBorder = "#E8D5D8"
@@ -175,9 +174,9 @@ class AbonosView(QWidget):
                 item.widget().deleteLater()
 
         if self.current_tab == "pending":
-            patients = readPATIENTS_with_remaining()
+            patients = get_patients_with_remaining()
         else:
-            patients = readPATIENTS_paid()
+            patients = get_patients_paid()
 
         if not patients:
             empty_lbl = QLabel("No hay cuentas pendientes" if self.current_tab == "pending" else "No hay cuentas saldadas")
@@ -397,7 +396,7 @@ class AbonosView(QWidget):
         self.detail_placeholder.setVisible(False)
         self.detail_content.setVisible(True)
 
-        patients = readPATIENTS_with_remaining() if self.current_tab == "pending" else readPATIENTS_paid()
+        patients = get_patients_with_remaining() if self.current_tab == "pending" else get_patients_paid()
         for p in patients:
             if p[0] == patient_id:
                 self.detail_title.setText(f"{p[1]} {p[2]}")
@@ -427,7 +426,7 @@ class AbonosView(QWidget):
         if not self.selected_patient_id:
             return
 
-        abonos = readABONOS_ordered(self.selected_patient_id)
+        abonos = get_patient_abonos(self.selected_patient_id)
         for a in abonos:
             row = QFrame()
             row.setStyleSheet(f"""
@@ -470,29 +469,14 @@ class AbonosView(QWidget):
         if not self.selected_patient_id:
             return
 
-        amount_text = self.amount_field.text().strip()
-        if not amount_text:
-            QMessageBox.warning(self, "Campo requerido", "Ingresa el monto del abono.")
-            return
-
         try:
-            amount = float(amount_text)
-        except ValueError:
-            QMessageBox.warning(self, "Dato inválido", "El monto debe ser un número.")
-            return
-
-        abonos = readABONOS_ordered(self.selected_patient_id)
-        last_remaining = abonos[0][6] if abonos and abonos[0][6] is not None else 0.0
-
-        new_remaining = last_remaining - amount
-        date = self.date_field.date().toString("yyyy-MM-dd")
-        desc = self.desc_field.text().strip()
-
-        createRow_ABONO(self.selected_patient_id, date, desc, abonos[0][4] if abonos else 0.0, amount, new_remaining)
-
-        self.amount_field.clear()
-        self.desc_field.clear()
-        self.date_field.setDate(QDate.currentDate())
-
-        self._select_patient(self.selected_patient_id)
-        self._load_patients()
+            date = self.date_field.date().toString("yyyy-MM-dd")
+            desc = self.desc_field.text().strip()
+            add_abono(self.selected_patient_id, self.amount_field.text().strip(), date, desc)
+            self.amount_field.clear()
+            self.desc_field.clear()
+            self.date_field.setDate(QDate.currentDate())
+            self._select_patient(self.selected_patient_id)
+            self._load_patients()
+        except ValueError as ex:
+            QMessageBox.warning(self, "Error", str(ex))

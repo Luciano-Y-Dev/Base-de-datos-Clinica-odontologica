@@ -2,10 +2,10 @@ import os
 import base64
 from cryptography.fernet import Fernet
 
-KEY_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "secret.key")
+KEY_PATH: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "secret.key")
 
 
-def _load_or_create_key():
+def _load_or_create_key() -> bytes:
     if os.path.exists(KEY_PATH):
         with open(KEY_PATH, "rb") as f:
             return f.read()
@@ -15,17 +15,17 @@ def _load_or_create_key():
     return key
 
 
-_fernet = None
+_fernet: Fernet | None = None
 
 
-def _get_fernet():
+def _get_fernet() -> Fernet:
     global _fernet
     if _fernet is None:
         _fernet = Fernet(_load_or_create_key())
     return _fernet
 
 
-def encrypt_field(value):
+def encrypt_field(value: str | None) -> str | None:
     if value is None or value == "":
         return value
     f = _get_fernet()
@@ -33,7 +33,7 @@ def encrypt_field(value):
     return base64.urlsafe_b64encode(encrypted).decode("utf-8")
 
 
-def decrypt_field(value):
+def decrypt_field(value: str | None) -> str | None:
     if value is None or value == "":
         return value
     f = _get_fernet()
