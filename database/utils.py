@@ -110,6 +110,25 @@ def readABONOS_ordered(patientID):
     finally:
         conn.close()
 
+def readPATIENTS_with_remaining_all():
+    conn = getConnection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.*,
+                   (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) as remaining
+            FROM pacientes p
+            ORDER BY p.entryDate DESC
+        """)
+        rows = cursor.fetchall()
+        return [
+            PacienteConSaldo(r[0], r[1], r[2], r[3], decrypt_field(r[4]), r[5], r[6], r[7], r[8], decrypt_field(r[9]), r[10], r[11], r[12])
+            for r in rows
+        ]
+    finally:
+        conn.close()
+
+
 def readPATIENTS_with_remaining():
     conn = getConnection()
     try:
@@ -119,7 +138,6 @@ def readPATIENTS_with_remaining():
                    (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) as remaining
             FROM pacientes p
             WHERE (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) > 0
-               OR (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) IS NULL
             ORDER BY p.entryDate DESC
         """)
         rows = cursor.fetchall()
@@ -140,6 +158,7 @@ def readPATIENTS_paid():
                    (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) as remaining
             FROM pacientes p
             WHERE (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) = 0
+               OR (SELECT remaining FROM abonos WHERE patientID = p.patientID ORDER BY ID DESC LIMIT 1) IS NULL
             ORDER BY p.entryDate DESC
         """)
         rows = cursor.fetchall()

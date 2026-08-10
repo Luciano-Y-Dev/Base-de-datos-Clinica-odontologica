@@ -1,5 +1,5 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
 from views.principal_view import PrincipalView
 from views.form_patient import FormPatient
 from views.patient_detail_view import PatientDetailView
@@ -11,6 +11,12 @@ from database.createDB import (
     createTable_ODONTOGRAMA_DETAILS, createTable_TRATAMIENTO,
     createTable_ABONO
 )
+from services.patient_service import (
+    get_patients_ordered, get_patients_with_remaining,
+    get_patient_full_data, get_odontogram_details,
+    filter_patients
+)
+from services.abono_service import get_patients_paid, get_patient_abonos, get_patients_with_remaining as get_patients_pending
 
 
 class MainW(QMainWindow):
@@ -44,33 +50,84 @@ class MainW(QMainWindow):
                 background: transparent;
             }
         """)
+
+        self.stack = QStackedWidget()
+        self.setCentralWidget(self.stack)
         self._build_ui()
 
     def _build_ui(self):
-        self.principal = PrincipalView(navigate_callback=self.navigate)
-        self.setCentralWidget(self.principal)
+        patients = get_patients_with_remaining()
+        view = PrincipalView(
+            patients=patients,
+            filter_fn=filter_patients,
+            navigate_callback=self.navigate
+        )
+        self.stack.addWidget(view)
+
+    def _switch_view(self, view):
+        old = self.stack.currentWidget()
+        self.stack.addWidget(view)
+        self.stack.setCurrentWidget(view)
+        if old:
+            self.stack.removeWidget(old)
+            old.deleteLater()
 
     def navigate(self, action, patient_id=None):
         if action == "principal":
-            self.principal = PrincipalView(navigate_callback=self.navigate)
-            self.setCentralWidget(self.principal)
+            patients = get_patients_with_remaining()
+            view = PrincipalView(
+                patients=patients,
+                filter_fn=filter_patients,
+                navigate_callback=self.navigate
+            )
+            self._switch_view(view)
         elif action == "form":
-            self.form = FormPatient(patient_id=patient_id, navigate_callback=self.navigate)
-            self.form.saved.connect(self._on_saved)
-            self.setCentralWidget(self.form)
+            data = None
+            if patient_id:
+                data = get_patient_full_data(patient_id)
+                if data:
+                    abonos = get_patient_abonos(patient_id)
+                    data["last_abono"] = abonos[-1] if abonos else None
+                    if data["odontograma"]:
+                        data["odontograma_details"] = get_odontogram_details(data["odontograma"].id)
+                    else:
+                        data["odontograma_details"] = []
+            view = FormPatient(data=data, navigate_callback=self.navigate)
+            view.saved.connect(self._on_saved)
+            self._switch_view(view)
         elif action == "detail":
-            self.detail = PatientDetailView(patient_id=patient_id, navigate_callback=self.navigate)
-            self.setCentralWidget(self.detail)
+            data = get_patient_full_data(patient_id) if patient_id else None
+            if data:
+                data["abonos"] = get_patient_abonos(patient_id)
+                if data["odontograma"]:
+                    data["odontograma_details"] = get_odontogram_details(data["odontograma"].id)
+                else:
+                    data["odontograma_details"] = []
+            view = PatientDetailView(data=data, navigate_callback=self.navigate)
+            self._switch_view(view)
         elif action == "abonos":
-            self.abonos = AbonosView(navigate_callback=self.navigate)
-            self.setCentralWidget(self.abonos)
+            view = AbonosView(
+                patients_pending=get_patients_pending(),
+                patients_paid=get_patients_paid(),
+                load_abonos_fn=get_patient_abonos,
+                navigate_callback=self.navigate
+            )
+            self._switch_view(view)
         elif action == "export":
-            self.export_view = ExportView(navigate_callback=self.navigate)
-            self.setCentralWidget(self.export_view)
+            view = ExportView(
+                patients=get_patients_ordered(),
+                navigate_callback=self.navigate
+            )
+            self._switch_view(view)
 
     def _on_saved(self):
-        self.principal = PrincipalView(navigate_callback=self.navigate)
-        self.setCentralWidget(self.principal)
+        patients = get_patients_with_remaining()
+        view = PrincipalView(
+            patients=patients,
+            filter_fn=filter_patients,
+            navigate_callback=self.navigate
+        )
+        self._switch_view(view)
 
 
 def main():

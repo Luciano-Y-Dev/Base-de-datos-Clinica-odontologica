@@ -4,7 +4,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QDate
 from PySide6.QtGui import QFont
-from services.abono_service import add_abono, get_patient_abonos, get_patients_with_remaining, get_patients_paid
+from services.abono_service import add_abono
+from services.patient_service import filter_patients
+from views.components.search_filter import SearchFilter
 
 Primary = "#C9929B"
 PrimaryBorder = "#E8D5D8"
@@ -16,10 +18,13 @@ White = "#FFFFFF"
 
 
 class AbonosView(QWidget):
-    def __init__(self, navigate_callback=None, parent=None):
+    def __init__(self, patients_pending=None, patients_paid=None, load_abonos_fn=None, navigate_callback=None, parent=None):
         super().__init__(parent)
         self.navigate_callback = navigate_callback
         self.selected_patient_id = None
+        self._patients_pending = patients_pending or []
+        self._patients_paid = patients_paid or []
+        self._load_abonos_fn = load_abonos_fn
         self.setStyleSheet(f"background-color: {pale_pink};")
         self._build_ui()
 
@@ -106,6 +111,10 @@ class AbonosView(QWidget):
 
         lo.addWidget(tabs_frame)
 
+        self._search_filter = SearchFilter(show_dates=False)
+        self._search_filter.filter_changed.connect(self._on_search_changed)
+        lo.addWidget(self._search_filter)
+
         self.current_tab = "pending"
 
         scroll = QScrollArea()
@@ -165,18 +174,31 @@ class AbonosView(QWidget):
         self.detail_content.setVisible(False)
         self.selected_patient_id = None
 
+        self._search_filter.reset()
         self._load_patients()
 
-    def _load_patients(self):
+    def _on_search_changed(self, search_text, date_from, date_to):
+        if self.current_tab == "pending":
+            patients = self._patients_pending
+        else:
+            patients = self._patients_paid
+
+        if search_text:
+            patients = filter_patients(patients, search_text)
+
+        self._load_patients(patients)
+
+    def _load_patients(self, patients=None):
         while self.patients_layout.count():
             item = self.patients_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        if self.current_tab == "pending":
-            patients = get_patients_with_remaining()
-        else:
-            patients = get_patients_paid()
+        if patients is None:
+            if self.current_tab == "pending":
+                patients = self._patients_pending
+            else:
+                patients = self._patients_paid
 
         if not patients:
             empty_lbl = QLabel("No hay cuentas pendientes" if self.current_tab == "pending" else "No hay cuentas saldadas")
@@ -396,7 +418,7 @@ class AbonosView(QWidget):
         self.detail_placeholder.setVisible(False)
         self.detail_content.setVisible(True)
 
-        patients = get_patients_with_remaining() if self.current_tab == "pending" else get_patients_paid()
+        patients = self._patients_pending if self.current_tab == "pending" else self._patients_paid
         for p in patients:
             if p.id == patient_id:
                 self.detail_title.setText(f"{p.name} {p.lastName}")
@@ -426,7 +448,7 @@ class AbonosView(QWidget):
         if not self.selected_patient_id:
             return
 
-        abonos = get_patient_abonos(self.selected_patient_id)
+        abonos = self._load_abonos_fn(self.selected_patient_id) if self._load_abonos_fn else []
         for a in abonos:
             row = QFrame()
             row.setStyleSheet(f"""
@@ -476,7 +498,7 @@ class AbonosView(QWidget):
             self.amount_field.clear()
             self.desc_field.clear()
             self.date_field.setDate(QDate.currentDate())
-            self._select_patient(self.selected_patient_id)
-            self._load_patients()
+            if self.navigate_callback:
+                self.navigate_callback("abonos")
         except ValueError as ex:
             QMessageBox.warning(self, "Error", str(ex))

@@ -4,12 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from services.patient_service import (
-    get_patient, get_patient_antecedentes, get_patient_examen,
-    get_patient_odontogram, get_odontogram_details, get_patient_remaining,
-    delete_patient
-)
-from services.abono_service import get_patient_abonos
+from services.patient_service import delete_patient
 
 Primary = "#C9929B"
 PrimaryBorder = "#E8D5D8"
@@ -87,18 +82,17 @@ def _card(title):
 class PatientDetailView(QWidget):
     navigate = Signal(str, object)
 
-    def __init__(self, patient_id=None, navigate_callback=None, parent=None):
+    def __init__(self, data=None, navigate_callback=None, parent=None):
         super().__init__(parent)
-        self.patient_id = patient_id
         self.navigate_callback = navigate_callback
-        self.paciente = get_patient(patient_id) if patient_id else None
-        self.antecedentes = get_patient_antecedentes(patient_id) if patient_id else None
-        self.examen = get_patient_examen(patient_id) if patient_id else None
-        self.remaining = get_patient_remaining(patient_id) if patient_id else 0.0
-        self.odontograma = get_patient_odontogram(patient_id) if patient_id else None
-        self.odontograma_details = []
-        if self.odontograma:
-            self.odontograma_details = get_odontogram_details(self.odontograma.id)
+        self.patient_id = data["paciente"].id if data else None
+        self.paciente = data["paciente"] if data else None
+        self.antecedentes = data["antecedentes"] if data else None
+        self.examen = data["examen"] if data else None
+        self.remaining = data["remaining"] if data else 0.0
+        self.odontograma = data["odontograma"] if data else None
+        self.odontograma_details = data.get("odontograma_details", []) if data else []
+        self.abonos = data.get("abonos", []) if data else []
         self.setStyleSheet(f"background-color: {pale_pink};")
         self._build_ui()
 
@@ -201,11 +195,10 @@ class PatientDetailView(QWidget):
             edit_btn.setCursor(Qt.PointingHandCursor)
             edit_btn.setFont(QFont("Segoe UI", 11, QFont.Weight.DemiBold))
             edit_btn.setStyleSheet(f"""
-                QPushButton {{ background-color: {Second}; color: white; border: 1px solid #C07088; border-radius: 8px; padding: 0 20px; }}
-                QPushButton:hover {{ background-color: #C07088; border-color: {Second}; }}
+                QPushButton {{ background-color: {Second}; color: white; border: 1px solid #C0607A; border-radius: 8px; padding: 0 20px; }}
+                QPushButton:hover {{ background-color: #C0607A; border-color: #A84860; }}
             """)
-            if self.navigate_callback:
-                edit_btn.clicked.connect(lambda: self.navigate_callback("form", self.patient_id))
+            edit_btn.clicked.connect(self._on_edit)
             lo.addWidget(edit_btn)
 
             del_btn = QPushButton("Eliminar")
@@ -368,7 +361,7 @@ class PatientDetailView(QWidget):
 
         lo.addSpacing(12)
 
-        abonos = get_patient_abonos(self.patient_id) if self.patient_id else []
+        abonos = self.abonos
         if abonos:
             for a in abonos:
                 row = QLabel(f"{a.date or '—'}  |  ${a.amount:.2f}  |  {a.description or '—'}  |  Resta: ${a.remaining:.2f}")
@@ -402,3 +395,7 @@ class PatientDetailView(QWidget):
                 err.setWindowTitle("Error")
                 err.setText(f"Error al eliminar: {ex}")
                 err.exec()
+
+    def _on_edit(self):
+        if self.navigate_callback:
+            self.navigate_callback("form", self.patient_id)

@@ -5,11 +5,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from services.patient_service import (
-    get_patient, get_patient_antecedentes, get_patient_examen,
-    get_patient_odontogram, get_odontogram_details, save_patient
-)
-from services.abono_service import get_patient_abono
+from services.patient_service import save_patient
 from views.components.odontogram import OdontogramWidget
 
 Primary = "#C9929B"
@@ -92,30 +88,18 @@ def _make_field(placeholder="", text="", multiline=False):
 class FormPatient(QWidget):
     saved = Signal()
 
-    def __init__(self, patient_id=None, navigate_callback=None, parent=None):
+    def __init__(self, data=None, navigate_callback=None, parent=None):
         super().__init__(parent)
-        self.patient_id = patient_id
         self.navigate_callback = navigate_callback
-        self.is_edit = patient_id is not None
+        self.is_edit = data is not None and data.get("paciente") is not None
+        self.patient_id = data["paciente"].id if self.is_edit else None
+        self.paciente = data["paciente"] if data else None
+        self.antecedentes = data["antecedentes"] if data else None
+        self.examen = data["examen"] if data else None
+        self.odontograma_details = data.get("odontograma_details", []) if data else []
+        self.last_abono = data.get("last_abono") if data else None
         self.setStyleSheet(f"background-color: {pale_pink};")
-        self._load_data()
         self._build_ui()
-
-    def _load_data(self):
-        if self.is_edit:
-            self.paciente = get_patient(self.patient_id)
-            self.antecedentes = get_patient_antecedentes(self.patient_id)
-            self.examen = get_patient_examen(self.patient_id)
-            self.odontograma = get_patient_odontogram(self.patient_id)
-            self.odontograma_details = []
-            if self.odontograma:
-                self.odontograma_details = get_odontogram_details(self.odontograma.id)
-        else:
-            self.paciente = None
-            self.antecedentes = None
-            self.examen = None
-            self.odontograma = None
-            self.odontograma_details = []
 
     def _build_ui(self):
         root = QVBoxLayout(self)
@@ -414,13 +398,10 @@ class FormPatient(QWidget):
         grid.addWidget(self.abonoF, 0, 1)
         grid.addWidget(self.descAbonoF, 1, 0, 1, 2)
 
-        if self.is_edit and self.patient_id:
-            abonos = get_patient_abono(self.patient_id)
-            if abonos:
-                last = abonos[-1]
-                self.costF.setText(str(last.treatmentCost) if last.treatmentCost else "")
-                self.abonoF.setText(str(last.amount) if last.amount else "")
-                self.descAbonoF.setText(last.description if last.description else "")
+        if self.is_edit and self.last_abono:
+            self.costF.setText(str(self.last_abono.treatmentCost) if self.last_abono.treatmentCost else "")
+            self.abonoF.setText(str(self.last_abono.amount) if self.last_abono.amount else "")
+            self.descAbonoF.setText(self.last_abono.description if self.last_abono.description else "")
 
         card_layout.addLayout(grid)
         layout.addWidget(card)
@@ -463,8 +444,6 @@ class FormPatient(QWidget):
             }
             save_patient(self.patient_id, form_data, self.ant_checks, self.odontogram_widget)
             self.saved.emit()
-            if self.navigate_callback:
-                self.navigate_callback("principal")
         except ValueError as ex:
             QMessageBox.warning(self, "Error de validación", str(ex))
         except Exception as ex:

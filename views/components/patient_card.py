@@ -1,7 +1,9 @@
+import os
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
-from services.patient_service import get_patient_remaining
+from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtGui import QFont, QIcon
+
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets")
 
 Primary = "#C9929B"
 Second = "#D4758C"
@@ -15,14 +17,15 @@ DangerBg = "#FEF2F2"
 
 class PatientCard(QFrame):
     clicked = Signal(int)
-    edit_clicked = Signal(int)
     delete_clicked = Signal(int)
+    edit_clicked = Signal(int)
 
     def __init__(self, patient, navigate_callback=None, parent=None):
         super().__init__(parent)
         self.patient = patient
         self.navigate_callback = navigate_callback
         self.patient_id = patient.id
+        self._hovered_btn = None
         self.setCursor(Qt.PointingHandCursor)
 
         self.setStyleSheet(f"""
@@ -66,70 +69,111 @@ class PatientCard(QFrame):
 
         layout.addLayout(info, 1)
 
-        remaining = get_patient_remaining(self.patient_id)
-        remaining = remaining if remaining is not None else 0.0
-
         right_layout = QVBoxLayout()
         right_layout.setSpacing(6)
         right_layout.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-        amt = QLabel(f"${remaining:.2f}")
-        amt.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        amt.setStyleSheet(f"color: {Txt1}; background: transparent; border: none;")
-        amt.setAlignment(Qt.AlignRight)
-        right_layout.addWidget(amt)
-
-        amt_desc = QLabel("Falta por abonar")
-        amt_desc.setFont(QFont("Segoe UI", 9))
-        amt_desc.setStyleSheet(f"color: {Txt2}; background: transparent; border: none;")
-        amt_desc.setAlignment(Qt.AlignRight)
-        right_layout.addWidget(amt_desc)
-
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(6)
+        btn_row.setSpacing(8)
         btn_row.setAlignment(Qt.AlignRight)
 
-        edit_btn = QPushButton("Editar")
-        edit_btn.setFixedSize(60, 26)
-        edit_btn.setCursor(Qt.PointingHandCursor)
-        edit_btn.setFont(QFont("Segoe UI", 9))
-        edit_btn.setStyleSheet(f"""
+        self._edit_btn = QPushButton()
+        self._edit_btn.setFixedSize(32, 32)
+        self._edit_btn.setCursor(Qt.PointingHandCursor)
+        self._edit_btn.setToolTip("Editar")
+        self._edit_btn.setIcon(QIcon(os.path.join(ASSETS_DIR, "edit.svg")))
+        self._edit_btn.setIconSize(QSize(16, 16))
+        self._edit_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
-                color: {Second};
-                border: none;
-                padding: 0 8px;
-            }}
-            QPushButton:hover {{
-                background-color: #FFF5F7;
+                border: 1.5px solid #B8C5D6;
+                border-radius: 16px;
             }}
         """)
-        edit_btn.clicked.connect(lambda: self.edit_clicked.emit(self.patient_id))
-        btn_row.addWidget(edit_btn)
+        btn_row.addWidget(self._edit_btn)
 
-        delete_btn = QPushButton("Borrar")
-        delete_btn.setFixedSize(60, 26)
-        delete_btn.setCursor(Qt.PointingHandCursor)
-        delete_btn.setFont(QFont("Segoe UI", 9))
-        delete_btn.setStyleSheet(f"""
+        self._edit_btn.clicked.connect(lambda: self.edit_clicked.emit(self.patient_id))
+
+        self._delete_btn = QPushButton()
+        self._delete_btn.setFixedSize(32, 32)
+        self._delete_btn.setCursor(Qt.PointingHandCursor)
+        self._delete_btn.setToolTip("Eliminar")
+        self._delete_btn.setIcon(QIcon(os.path.join(ASSETS_DIR, "delete.svg")))
+        self._delete_btn.setIconSize(QSize(16, 16))
+        self._delete_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
-                color: {Danger};
-                border: none;
-                padding: 0 8px;
-            }}
-            QPushButton:hover {{
-                background-color: {DangerBg};
+                border: 1.5px solid #E89A9A;
+                border-radius: 16px;
             }}
         """)
-        delete_btn.clicked.connect(lambda: self.delete_clicked.emit(self.patient_id))
-        btn_row.addWidget(delete_btn)
+        btn_row.addWidget(self._delete_btn)
+
+        self._delete_btn.clicked.connect(lambda: self.delete_clicked.emit(self.patient_id))
 
         right_layout.addLayout(btn_row)
         layout.addLayout(right_layout)
 
-    def mousePressEvent(self, event):
-        if self.navigate_callback:
-            self.navigate_callback("detail", self.patient_id)
-        self.clicked.emit(self.patient_id)
-        super().mousePressEvent(event)
+        self.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj == self._delete_btn or obj == self._edit_btn:
+            return False
+
+        if obj == self and event.type() == event.Type.MouseMove:
+            child = self.childAt(event.pos())
+            hovered = None
+            while child:
+                if child == self._delete_btn:
+                    hovered = self._delete_btn
+                    break
+                if child == self._edit_btn:
+                    hovered = self._edit_btn
+                    break
+                child = child.parentWidget()
+            if hovered != self._hovered_btn:
+                self._hovered_btn = hovered
+                self._update_btn_styles()
+
+        if obj == self and event.type() == event.Type.MouseButtonRelease:
+            if self.navigate_callback:
+                self.navigate_callback("detail", self.patient_id)
+            self.clicked.emit(self.patient_id)
+            return True
+
+        return super().eventFilter(obj, event)
+
+    def _update_btn_styles(self):
+        if self._hovered_btn == self._delete_btn:
+            self._delete_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: #FEE2E2;
+                    border: 1.5px solid #E89A9A;
+                    border-radius: 16px;
+                }}
+            """)
+        else:
+            self._delete_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    border: 1.5px solid #E89A9A;
+                    border-radius: 16px;
+                }}
+            """)
+
+        if self._hovered_btn == self._edit_btn:
+            self._edit_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: #E8F0FE;
+                    border: 1.5px solid #93B4E8;
+                    border-radius: 16px;
+                }}
+            """)
+        else:
+            self._edit_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    border: 1.5px solid #B8C5D6;
+                    border-radius: 16px;
+                }}
+            """)

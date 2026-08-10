@@ -3,7 +3,8 @@ from typing import Any, Protocol
 from database.createDB import save_patient_atomic, deleteRow_PACIENTES, readODONTOGRAMA_DETAILS
 from database.utils import (
     readPACIENTE, readANTECEDENTES, readEXAMEN,
-    readODONTOGRAMA_by_patient, readREMAINING, readTable_PACIENTES_ordered
+    readODONTOGRAMA_by_patient, readREMAINING, readTable_PACIENTES_ordered,
+    readPATIENTS_with_remaining_all
 )
 
 
@@ -121,3 +122,54 @@ def get_patient_remaining(patient_id: int) -> float:
 
 def get_patients_ordered():
     return readTable_PACIENTES_ordered()
+
+
+def get_patients_with_remaining():
+    return readPATIENTS_with_remaining_all()
+
+
+def get_patient_full_data(patient_id: int) -> dict[str, Any] | None:
+    paciente = readPACIENTE(patient_id)
+    if not paciente:
+        return None
+    return {
+        "paciente": paciente,
+        "antecedentes": readANTECEDENTES(patient_id),
+        "examen": readEXAMEN(patient_id),
+        "remaining": get_patient_remaining(patient_id),
+        "odontograma": readODONTOGRAMA_by_patient(patient_id),
+    }
+
+
+def filter_patients(
+    patients,
+    search_text: str = "",
+    date_from=None,
+    date_to=None,
+) -> list:
+    from datetime import datetime
+
+    filtered = []
+    for p in patients:
+        matches_search = True
+        if search_text:
+            text = search_text.lower()
+            matches_search = (
+                text in p.name.lower()
+                or text in p.lastName.lower()
+                or text in str(p.CI)
+            )
+
+        matches_date = True
+        if p.entryDate and date_from and date_to:
+            try:
+                entry_date = datetime.strptime(p.entryDate, "%Y-%m-%d").date()
+                if entry_date < date_from or entry_date > date_to:
+                    matches_date = False
+            except (ValueError, TypeError):
+                pass
+
+        if matches_search and matches_date:
+            filtered.append(p)
+
+    return filtered

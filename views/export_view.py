@@ -4,8 +4,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from services.patient_service import get_patients_ordered
 from services.export_service import generate_patients_pdf
+from services.patient_service import filter_patients
+from views.components.search_filter import SearchFilter
 
 Primary = "#C9929B"
 PrimaryBorder = "#E8D5D8"
@@ -17,16 +18,17 @@ White = "#FFFFFF"
 
 
 class ExportView(QWidget):
-    def __init__(self, navigate_callback=None, parent=None):
+    def __init__(self, patients=None, navigate_callback=None, parent=None):
         super().__init__(parent)
         self.navigate_callback = navigate_callback
+        self._patients = patients or []
         self.setStyleSheet(f"background-color: {pale_pink};")
         self._checkboxes: list[QCheckBox] = []
         self._build_ui()
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(12, 12, 12, 12)
+        root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
         header = QFrame()
@@ -56,126 +58,88 @@ class ExportView(QWidget):
         header_lo.addStretch()
 
         root.addWidget(header)
-        root.addSpacing(16)
 
-        patients = get_patients_ordered()
+        content = QWidget()
+        content.setStyleSheet("background: transparent;")
+        self._content_lo = QVBoxLayout(content)
+        self._content_lo.setContentsMargins(32, 20, 32, 20)
+        self._content_lo.setSpacing(0)
 
-        if patients:
-            actions = QHBoxLayout()
-            actions.setSpacing(8)
+        self._content_lo.addSpacing(16)
 
-            select_all_btn = QPushButton("Seleccionar todos")
-            select_all_btn.setCursor(Qt.PointingHandCursor)
-            select_all_btn.setFixedHeight(36)
-            select_all_btn.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
-            select_all_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: transparent;
-                    color: {Second};
-                    border: 1px solid {Second};
-                    border-radius: 8px;
-                    padding: 0 16px;
-                }}
-                QPushButton:hover {{
-                    background-color: #FFF5F7;
-                }}
-            """)
-            select_all_btn.clicked.connect(self._toggle_all)
-            actions.addWidget(select_all_btn)
+        self._search_filter = SearchFilter()
+        self._search_filter.filter_changed.connect(self._on_filter_changed)
+        self._content_lo.addWidget(self._search_filter)
+        self._search_filter.hide_frame()
 
-            actions.addStretch()
+        self._content_lo.addSpacing(12)
 
-            self.export_btn = QPushButton("Exportar PDF (0)")
-            self.export_btn.setCursor(Qt.PointingHandCursor)
-            self.export_btn.setFixedHeight(36)
-            self.export_btn.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
-            self.export_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {Second};
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    padding: 0 20px;
-                }}
-                QPushButton:hover {{ background-color: #C0607A; }}
-                QPushButton:pressed {{ background-color: #A84860; }}
-            """)
-            self.export_btn.clicked.connect(self._export)
-            actions.addWidget(self.export_btn)
+        actions = QHBoxLayout()
+        actions.setSpacing(8)
 
-            root.addLayout(actions)
-            root.addSpacing(12)
+        select_all_btn = QPushButton("Seleccionar todos")
+        select_all_btn.setCursor(Qt.PointingHandCursor)
+        select_all_btn.setFixedHeight(36)
+        select_all_btn.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
+        select_all_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {Second};
+                border: 1px solid {Second};
+                border-radius: 8px;
+                padding: 0 16px;
+            }}
+            QPushButton:hover {{
+                background-color: #FFF5F7;
+            }}
+        """)
+        select_all_btn.clicked.connect(self._toggle_all)
+        actions.addWidget(select_all_btn)
 
-            scroll = QScrollArea()
-            scroll.setWidgetResizable(True)
-            scroll.setFrameShape(QFrame.NoFrame)
-            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-            scroll.setStyleSheet("""
-                QScrollArea { border: none; background: transparent; }
-                QScrollBar:vertical { background: transparent; width: 6px; }
-                QScrollBar::handle:vertical { background: #D1D5DB; border-radius: 3px; min-height: 24px; }
-                QScrollBar::handle:vertical:hover { background: #9CA3AF; }
-                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
-                QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
-            """)
+        actions.addStretch()
 
-            cards = QWidget()
-            cards.setStyleSheet("background: transparent;")
-            cards_layout = QVBoxLayout(cards)
-            cards_layout.setContentsMargins(0, 0, 8, 0)
-            cards_layout.setSpacing(8)
+        self.export_btn = QPushButton("Exportar PDF (0)")
+        self.export_btn.setCursor(Qt.PointingHandCursor)
+        self.export_btn.setFixedHeight(36)
+        self.export_btn.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
+        self.export_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Second};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 0 20px;
+            }}
+            QPushButton:hover {{ background-color: #C0607A; }}
+            QPushButton:pressed {{ background-color: #A84860; }}
+        """)
+        self.export_btn.clicked.connect(self._export)
+        actions.addWidget(self.export_btn)
 
-            for p in patients:
-                card = QFrame()
-                card.setStyleSheet(f"""
-                    QFrame {{
-                        background-color: {White};
-                        border: none;
-                        border-left: 4px solid {Primary};
-                        border-radius: 14px;
-                    }}
-                """)
-                card_lo = QHBoxLayout(card)
-                card_lo.setContentsMargins(16, 14, 16, 14)
-                card_lo.setSpacing(12)
+        self._content_lo.addLayout(actions)
+        self._content_lo.addSpacing(12)
 
-                cb = QCheckBox()
-                cb.setStyleSheet(f"""
-                    QCheckBox::indicator {{
-                        width: 18px; height: 18px;
-                        border: 2px solid {PrimaryBorder};
-                        border-radius: 4px;
-                        background: {White};
-                    }}
-                    QCheckBox::indicator:checked {{
-                        background-color: {Second};
-                        border-color: {Second};
-                    }}
-                """)
-                cb.stateChanged.connect(self._update_count)
-                self._checkboxes.append((cb, p.id))
-                card_lo.addWidget(cb)
+        self._list_container = QWidget()
+        self._list_container.setStyleSheet("background: transparent;")
+        self._list_lo = QVBoxLayout(self._list_container)
+        self._list_lo.setContentsMargins(0, 0, 0, 0)
+        self._list_lo.setSpacing(0)
+        self._content_lo.addWidget(self._list_container, 1)
 
-                info = QVBoxLayout()
-                info.setSpacing(2)
+        self._build_patient_list(self._patients)
 
-                name_lbl = QLabel(f"{p.name} {p.lastName}")
-                name_lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
-                name_lbl.setStyleSheet(f"color: {Txt1}; background: transparent;")
-                info.addWidget(name_lbl)
+        root.addWidget(content, 1)
 
-                meta_lbl = QLabel(f"{p.age} anos  ·  CI: {p.CI}  ·  {p.entryDate}")
-                meta_lbl.setFont(QFont("Segoe UI", 9))
-                meta_lbl.setStyleSheet(f"color: {Txt2}; background: transparent;")
-                info.addWidget(meta_lbl)
+    def _build_patient_list(self, patients):
+        while self._list_lo.count():
+            item = self._list_lo.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
 
-                card_lo.addLayout(info, 1)
-                cards_layout.addWidget(card)
+        self._checkboxes = []
 
-            cards_layout.addStretch()
-            scroll.setWidget(cards)
-            root.addWidget(scroll, 1)
-        else:
+        if not patients:
             empty = QWidget()
             empty.setStyleSheet("background: transparent;")
             empty_lo = QVBoxLayout(empty)
@@ -188,7 +152,86 @@ class ExportView(QWidget):
             empty_text.setStyleSheet(f"color: {Txt1}; background: transparent;")
             empty_lo.addWidget(empty_text)
 
-            root.addWidget(empty, 1)
+            self._list_lo.addWidget(empty)
+            self.export_btn.setEnabled(False)
+            self.export_btn.setText("Exportar PDF (0)")
+            return
+
+        self.export_btn.setEnabled(True)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("""
+            QScrollArea { border: none; background: transparent; }
+            QScrollBar:vertical { background: transparent; width: 6px; }
+            QScrollBar::handle:vertical { background: #D1D5DB; border-radius: 3px; min-height: 24px; }
+            QScrollBar::handle:vertical:hover { background: #9CA3AF; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
+        """)
+
+        cards = QWidget()
+        cards.setStyleSheet("background: transparent;")
+        cards_layout = QVBoxLayout(cards)
+        cards_layout.setContentsMargins(0, 0, 8, 0)
+        cards_layout.setSpacing(8)
+
+        for p in patients:
+            card = QFrame()
+            card.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {White};
+                    border: none;
+                    border-left: 4px solid {Primary};
+                    border-radius: 14px;
+                }}
+            """)
+            card_lo = QHBoxLayout(card)
+            card_lo.setContentsMargins(16, 14, 16, 14)
+            card_lo.setSpacing(12)
+
+            cb = QCheckBox()
+            cb.setStyleSheet(f"""
+                QCheckBox::indicator {{
+                    width: 18px; height: 18px;
+                    border: 2px solid {PrimaryBorder};
+                    border-radius: 4px;
+                    background: {White};
+                }}
+                QCheckBox::indicator:checked {{
+                    background-color: {Second};
+                    border-color: {Second};
+                }}
+            """)
+            cb.stateChanged.connect(self._update_count)
+            self._checkboxes.append((cb, p.id))
+            card_lo.addWidget(cb)
+
+            info = QVBoxLayout()
+            info.setSpacing(2)
+
+            name_lbl = QLabel(f"{p.name} {p.lastName}")
+            name_lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
+            name_lbl.setStyleSheet(f"color: {Txt1}; background: transparent;")
+            info.addWidget(name_lbl)
+
+            meta_lbl = QLabel(f"{p.age} anos  ·  CI: {p.CI}  ·  {p.entryDate}")
+            meta_lbl.setFont(QFont("Segoe UI", 9))
+            meta_lbl.setStyleSheet(f"color: {Txt2}; background: transparent;")
+            info.addWidget(meta_lbl)
+
+            card_lo.addLayout(info, 1)
+            cards_layout.addWidget(card)
+
+        cards_layout.addStretch()
+        scroll.setWidget(cards)
+        self._list_lo.addWidget(scroll)
+
+    def _on_filter_changed(self, search_text, date_from, date_to):
+        filtered = filter_patients(self._patients, search_text, date_from, date_to)
+        self._build_patient_list(filtered)
 
     def _toggle_all(self):
         all_checked = all(cb.isChecked() for cb, _ in self._checkboxes)

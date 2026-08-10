@@ -889,6 +889,7 @@ class OdontogramWidget(QWidget):
 
     def get_data(self):
         affections_list = []
+        seen = set()
         for tooth in sorted(self.affections.keys()):
             aff = self.affections[tooth]
             faces = aff.get("faces", {})
@@ -901,6 +902,11 @@ class OdontogramWidget(QWidget):
                 else:
                     tool = TOOL_CARIES
                     desc = str(face_data)
+
+                dedup_key = (tooth, face_code)
+                if dedup_key in seen:
+                    continue
+                seen.add(dedup_key)
 
                 if tool == TOOL_AUSENTE:
                     affected = "Ausente"
@@ -921,8 +927,30 @@ class OdontogramWidget(QWidget):
                 })
         return {"affections": affections_list}
 
+    @staticmethod
+    def _affected_to_tool(affected):
+        if affected == "Ausente":
+            return TOOL_AUSENTE
+        elif affected == "Resina":
+            return TOOL_RESINA
+        elif affected == "Endodoncia":
+            return TOOL_ENDODONCIA
+        elif affected == "Corona":
+            return TOOL_CORONA
+        return TOOL_CARIES
+
     def load_data(self, odontogram_details):
         self.affections.clear()
+
+        has_temporary = any(
+            row[2] >= 50 for row in odontogram_details if len(row) >= 3 and isinstance(row[2], (int, float))
+        )
+        new_dentition = "child" if has_temporary else "adult"
+        if new_dentition != self.dentition_type:
+            self.dentition_type = new_dentition
+            self._build_teeth_map()
+            self._update_toggle_style()
+
         for row in odontogram_details:
             if len(row) >= 6:
                 detail_id, odontogram_id, tooth, face, affected, description = row[:6]
@@ -936,29 +964,12 @@ class OdontogramWidget(QWidget):
                 self.affections[tooth] = {"faces": {}}
 
             faces = self.affections[tooth]["faces"]
+            tool = self._affected_to_tool(affected)
 
             if face is None:
-                tool = TOOL_CARIES
-                if affected == "Ausente":
-                    tool = TOOL_AUSENTE
-                elif affected == "Resina":
-                    tool = TOOL_RESINA
-                elif affected == "Endodoncia":
-                    tool = TOOL_ENDODONCIA
-                elif affected == "Corona":
-                    tool = TOOL_CORONA
                 for fc in ["V", "O", "L", "M", "D"]:
                     faces[fc] = {"tool": tool, "description": description or ""}
             else:
-                tool = TOOL_CARIES
-                if affected == "Ausente":
-                    tool = TOOL_AUSENTE
-                elif affected == "Resina":
-                    tool = TOOL_RESINA
-                elif affected == "Endodoncia":
-                    tool = TOOL_ENDODONCIA
-                elif affected == "Corona":
-                    tool = TOOL_CORONA
                 faces[face] = {"tool": tool, "description": description or ""}
 
         self._refresh_all_teeth()
