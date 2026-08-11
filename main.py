@@ -1,5 +1,7 @@
 import sys
+import os
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
+from PySide6.QtGui import QIcon
 from views.principal_view import PrincipalView
 from views.form_patient import FormPatient
 from views.patient_detail_view import PatientDetailView
@@ -9,7 +11,7 @@ from database.createDB import (
     createTable_PACIENTES, createTable_ANTECEDENTES,
     createTable_EXAMEN, createTable_ODONTOGRAMA,
     createTable_ODONTOGRAMA_DETAILS, createTable_TRATAMIENTO,
-    createTable_ABONO
+    migrateTRATAMIENTO_add_date, createTable_ABONO
 )
 from services.patient_service import (
     get_patients_ordered, get_patients_with_remaining,
@@ -24,12 +26,20 @@ class MainW(QMainWindow):
         super().__init__()
         self.setWindowTitle("Clínica Odontológica")
         self.setFixedSize(1200, 800)
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "clinica-icon.ico")
+        self.setWindowIcon(QIcon(icon_path))
         self.setStyleSheet("""
             QMainWindow {
                 background-color: #FDF2F4;
             }
             QWidget {
                 background-color: #FDF2F4;
+            }
+            QCalendarWidget {
+                background-color: white;
+            }
+            QCalendarWidget QWidget {
+                background-color: white;
             }
             QScrollBar:vertical {
                 background: transparent;
@@ -131,15 +141,21 @@ class MainW(QMainWindow):
 
 
 def main():
+    import ctypes
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("clinica.odontologica.app")
+
     createTable_PACIENTES()
     createTable_ANTECEDENTES()
     createTable_EXAMEN()
     createTable_ODONTOGRAMA()
     createTable_ODONTOGRAMA_DETAILS()
     createTable_TRATAMIENTO()
+    migrateTRATAMIENTO_add_date()
     createTable_ABONO()
 
     app = QApplication(sys.argv)
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "clinica-icon.ico")
+    app.setWindowIcon(QIcon(icon_path))
     window = MainW()
     window.show()
     sys.exit(app.exec())
