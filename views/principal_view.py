@@ -94,14 +94,6 @@ class Sidebar(QFrame):
         layout.setContentsMargins(16, 28, 16, 20)
         layout.setSpacing(8)
 
-        sidebar_logo = QLabel()
-        sidebar_logo.setStyleSheet("background: transparent;")
-        sidebar_logo.setPixmap(load_svg("assets/Logo.svg", 50, self.devicePixelRatioF()))
-        sidebar_logo.setAlignment(Qt.AlignLeft)
-        layout.addWidget(sidebar_logo)
-
-        layout.addSpacing(12)
-
         nav_items = [
             ("Pacientes", "principal", True),
             ("Abonos", "abonos", False),
@@ -122,12 +114,7 @@ class Sidebar(QFrame):
         restore_btn = SidebarButton("Restaurar respaldo", navigate_callback=navigate_callback, nav_target="restore")
         layout.addWidget(restore_btn)
 
-        layout.addSpacing(8)
 
-        doctor = QLabel("Dra. Raquel Virguez")
-        doctor.setFont(QFont("Segoe UI", 9))
-        doctor.setStyleSheet("color: rgba(255, 255, 255, 0.7); background: transparent;")
-        layout.addWidget(doctor)
 
     def set_active(self, target):
         for t, btn in self._buttons:
@@ -145,9 +132,6 @@ class PrincipalView(QWidget):
         self.setStyleSheet(f"background-color: {pale_pink};")
         self._build_ui()
 
-        if self._all_patients:
-            self._search_filter.update_results_label(len(self._all_patients), len(self._all_patients))
-
     def _build_ui(self):
         root = QHBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
@@ -163,41 +147,10 @@ class PrincipalView(QWidget):
         logo_label = QLabel()
         logo_label.setStyleSheet("background: transparent;")
         logo_label.setPixmap(load_svg("assets/Logo.svg", 140, self.devicePixelRatioF()))
-        logo_label.setAlignment(Qt.AlignLeft)
+        logo_label.setAlignment(Qt.AlignCenter)
         content.addWidget(logo_label)
 
-        content.addSpacing(20)
-
-        self._toggle_btn = QPushButton("Buscar")
-        self._toggle_btn.setFixedHeight(36)
-        self._toggle_btn.setCursor(Qt.PointingHandCursor)
-        self._toggle_btn.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
-        self._toggle_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Second};
-                color: white;
-                border: none;
-                border-radius: 10px;
-                padding: 0 20px;
-            }}
-            QPushButton:hover {{
-                background-color: #C0607A;
-            }}
-            QPushButton:pressed {{
-                background-color: #A84860;
-            }}
-        """)
-        self._toggle_btn.clicked.connect(self._toggle_search)
-        content.addWidget(self._toggle_btn, alignment=Qt.AlignLeft)
-
-        content.addSpacing(8)
-
-        self._search_filter = SearchFilter()
-        self._search_filter.filter_changed.connect(self._on_filter_changed)
-        content.addWidget(self._search_filter)
-        self._search_filter.hide_frame()
-
-        content.addSpacing(16)
+        content.addSpacing(35)
 
         self._add_widget = QWidget()
         self._add_widget.setStyleSheet("background: transparent;")
@@ -225,6 +178,7 @@ class PrincipalView(QWidget):
         """)
         if self.navigate_callback:
             add_btn.clicked.connect(lambda: self.navigate_callback("form", None))
+        add_row.addStretch()
         add_row.addWidget(add_btn)
         add_row.addStretch()
         content.addWidget(self._add_widget)
@@ -305,6 +259,37 @@ class PrincipalView(QWidget):
         empty_layout.addWidget(empty_btn, alignment=Qt.AlignCenter)
 
         content.addWidget(self._empty_widget, 1)
+
+        self._toggle_btn = QPushButton("Buscar")
+        self._toggle_btn.setFixedHeight(36)
+        self._toggle_btn.setCursor(Qt.PointingHandCursor)
+        self._toggle_btn.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
+        self._toggle_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Second};
+                color: white;
+                border: none;
+                border-radius: 10px;
+                padding: 0 20px;
+            }}
+            QPushButton:hover {{
+                background-color: #C0607A;
+            }}
+            QPushButton:pressed {{
+                background-color: #A84860;
+            }}
+        """)
+        self._toggle_btn.clicked.connect(self._toggle_search)
+        content.addSpacing(12)
+        content.addWidget(self._toggle_btn, alignment=Qt.AlignLeft)
+
+        self._search_filter = SearchFilter()
+        self._search_filter.filter_changed.connect(self._on_filter_changed)
+        content.addWidget(self._search_filter)
+        self._search_filter.hide_frame()
+
+        if self._all_patients:
+            self._search_filter.update_results_label(len(self._all_patients), len(self._all_patients))
 
         if not self._all_patients:
             self._scroll_area.hide()
