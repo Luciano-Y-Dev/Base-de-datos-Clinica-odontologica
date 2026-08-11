@@ -10,3 +10,11 @@ dependencies = [
     "fpdf2>=2.8.0",
     "platformdirs>=4.11.1",
 ]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-qt>=4.4",
+    "pytest-mock>=3.14",
+    "pytest-html>=4.0",
+]
