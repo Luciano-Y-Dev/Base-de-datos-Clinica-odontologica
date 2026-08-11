@@ -1,13 +1,29 @@
 import sqlite3 as sql
 import os
+import shutil
+import platformdirs
 from .crypto import encrypt_field, decrypt_field
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "Clinica.db")
+_APP_NAME = "clinica_odontologica"
+_DATA_DIR = platformdirs.user_data_dir(_APP_NAME, appauthor=False)
+
+DB_PATH = os.path.join(_DATA_DIR, "Clinica.db")
+LEGACY_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "Clinica.db")
 
 def getConnection():
+    os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
     conn = sql.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
+
+def migrate_legacy_db_if_needed():
+    """Copia la DB de la ubicacion antigua (junto al codigo) a la carpeta de
+    datos del usuario, solo si la nueva aun no existe. Devuelve True si migro."""
+    if os.path.exists(DB_PATH) or not os.path.exists(LEGACY_DB_PATH):
+        return False
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    shutil.copy2(LEGACY_DB_PATH, DB_PATH)
+    return True
 
 def createTable_PACIENTES():
     conn = getConnection()
@@ -551,6 +567,38 @@ def deleteRow_ABONO(id):
     finally:
         conn.close()
 
+def update_abonos_chain(abonos):
+    """Actualiza varias filas de abonos en una sola transaccion.
+    Cada elemento debe tener: id, date, description, treatmentCost, amount, remaining."""
+    conn = getConnection()
+    try:
+        cursor = conn.cursor()
+        for a in abonos:
+            cursor.execute("UPDATE abonos SET date = ?, description = ?, treatmentCost = ?, amount = ?, remaining = ? WHERE ID = ?",
+                            (a.date, a.description, a.treatmentCost, a.amount, a.remaining, a.id))
+        conn.commit()
+    except sql.Error as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+def delete_abono_with_chain(abono_id, abonos):
+    """Elimina un abono y actualiza las filas restantes en una sola transaccion."""
+    conn = getConnection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM abonos WHERE ID = ?", (abono_id,))
+        for a in abonos:
+            cursor.execute("UPDATE abonos SET date = ?, description = ?, treatmentCost = ?, amount = ?, remaining = ? WHERE ID = ?",
+                            (a.date, a.description, a.treatmentCost, a.amount, a.remaining, a.id))
+        conn.commit()
+    except sql.Error as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
 
 def save_patient_atomic(patient_id, name, lastName, age, CI, entryDate, phoneNumber, home, representName, representCI, consultReason, presentIssues, antecedentes_data, examen_data, odontogram_data, abono_data):
     # Validaciones basicas antes de abrir transaccion
@@ -598,8 +646,8 @@ def save_patient_atomic(patient_id, name, lastName, age, CI, entryDate, phoneNum
             cursor.execute("INSERT INTO examen_fisico (patientID, extraoral, intraoralTB, intraoralTD, periodontal, PA) VALUES (?, ?, ?, ?, ?, ?)",
                 (cid, *ed))
 
-        # 4. Odontograma
-        if odontogram_data and odontogram_data.get("affections"):
+        # 4. Odontograma (reemplazo total: la ficha refleja el estado completo)
+        if odontogram_data is not None:
             notes = odontogram_data.get("notes", "")
             cursor.execute("SELECT ID FROM odontograms WHERE patientID = ? ORDER BY ID DESC LIMIT 1", (cid,))
             row = cursor.fetchone()
@@ -611,11 +659,11 @@ def save_patient_atomic(patient_id, name, lastName, age, CI, entryDate, phoneNum
                 odontogram_id = cursor.lastrowid
 
             cursor.execute("DELETE FROM odontogram_details WHERE odontogramID = ?", (odontogram_id,))
-            for aff in odontogram_data["affections"]:
+            for aff in odontogram_data.get("affections", []):
                 cursor.execute("INSERT INTO odontogram_details (odontogramID, tooth, face, affected, description) VALUES (?, ?, ?, ?, ?)",
                     (odontogram_id, aff["tooth"], aff["face"], aff["affected"], aff["description"]))
 
-        # 5. Abono
+        # 5. Abono (solo se crea; el historial NUNCA se modifica al editar la ficha)
         if abono_data:
             cost = abono_data.get("cost", 0)
             amount = abono_data.get("amount", 0)
@@ -623,14 +671,8 @@ def save_patient_atomic(patient_id, name, lastName, age, CI, entryDate, phoneNum
             desc = abono_data.get("description", "")
             from datetime import date
             today = date.today().isoformat()
-            cursor.execute("SELECT ID FROM abonos WHERE patientID = ? ORDER BY ID DESC LIMIT 1", (cid,))
-            row = cursor.fetchone()
-            if row:
-                cursor.execute("UPDATE abonos SET date = ?, description = ?, treatmentCost = ?, amount = ?, remaining = ? WHERE ID = ?",
-                    (today, desc, cost, amount, remaining, row[0]))
-            else:
-                cursor.execute("INSERT INTO abonos (patientID, date, description, treatmentCost, amount, remaining) VALUES (?, ?, ?, ?, ?, ?)",
-                    (cid, today, desc, cost, amount, remaining))
+            cursor.execute("INSERT INTO abonos (patientID, date, description, treatmentCost, amount, remaining) VALUES (?, ?, ?, ?, ?, ?)",
+                (cid, today, desc, cost, amount, remaining))
 
         conn.commit()
         return cid

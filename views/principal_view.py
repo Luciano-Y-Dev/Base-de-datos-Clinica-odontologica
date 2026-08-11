@@ -2,8 +2,9 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QFrame, QMessageBox
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, Signal, QRectF
+from PySide6.QtGui import QFont, QPixmap, QPainter
+from PySide6.QtSvg import QSvgRenderer
 from services.patient_service import delete_patient
 from views.components.patient_card import PatientCard
 from views.components.search_filter import SearchFilter
@@ -14,6 +15,20 @@ Txt1 = "#2D2D2D"
 Txt2 = "#7A7A7A"
 pale_pink = "#FDF2F4"
 White = "#FFFFFF"
+
+
+def load_svg(path, height, dpr=1.0):
+    renderer = QSvgRenderer(path)
+    size = renderer.defaultSize()
+    width = int(size.width() * height / size.height())
+    pixmap = QPixmap(int(width * dpr), int(height * dpr))
+    pixmap.setDevicePixelRatio(dpr)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.Antialiasing)
+    renderer.render(painter, QRectF(0, 0, width, height))
+    painter.end()
+    return pixmap
 
 
 class SidebarButton(QPushButton):
@@ -79,17 +94,13 @@ class Sidebar(QFrame):
         layout.setContentsMargins(16, 28, 16, 20)
         layout.setSpacing(8)
 
-        brand = QLabel("Clínica")
-        brand.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        brand.setStyleSheet("color: white; background: transparent;")
-        layout.addWidget(brand)
+        sidebar_logo = QLabel()
+        sidebar_logo.setStyleSheet("background: transparent;")
+        sidebar_logo.setPixmap(load_svg("assets/Logo.svg", 50, self.devicePixelRatioF()))
+        sidebar_logo.setAlignment(Qt.AlignLeft)
+        layout.addWidget(sidebar_logo)
 
-        brand_sub = QLabel("Odontológica")
-        brand_sub.setFont(QFont("Segoe UI", 11))
-        brand_sub.setStyleSheet("color: rgba(255, 255, 255, 0.8); background: transparent;")
-        layout.addWidget(brand_sub)
-
-        layout.addSpacing(36)
+        layout.addSpacing(12)
 
         nav_items = [
             ("Pacientes", "principal", True),
@@ -104,6 +115,14 @@ class Sidebar(QFrame):
             layout.addWidget(btn)
 
         layout.addStretch()
+
+        backup_btn = SidebarButton("Respaldar datos", navigate_callback=navigate_callback, nav_target="backup")
+        layout.addWidget(backup_btn)
+
+        restore_btn = SidebarButton("Restaurar respaldo", navigate_callback=navigate_callback, nav_target="restore")
+        layout.addWidget(restore_btn)
+
+        layout.addSpacing(8)
 
         doctor = QLabel("Dra. Raquel Virguez")
         doctor.setFont(QFont("Segoe UI", 9))
@@ -141,19 +160,13 @@ class PrincipalView(QWidget):
         content.setContentsMargins(28, 28, 28, 28)
         content.setSpacing(0)
 
-        title = QLabel("Clínica Odontológica")
-        title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {Txt1}; background: transparent;")
-        content.addWidget(title)
+        logo_label = QLabel()
+        logo_label.setStyleSheet("background: transparent;")
+        logo_label.setPixmap(load_svg("assets/Logo.svg", 140, self.devicePixelRatioF()))
+        logo_label.setAlignment(Qt.AlignLeft)
+        content.addWidget(logo_label)
 
-        content.addSpacing(4)
-
-        subtitle = QLabel("Dra. Raquel Virguez")
-        subtitle.setFont(QFont("Segoe UI", 14))
-        subtitle.setStyleSheet(f"color: {Txt2}; background: transparent;")
-        content.addWidget(subtitle)
-
-        content.addSpacing(16)
+        content.addSpacing(20)
 
         self._toggle_btn = QPushButton("Buscar")
         self._toggle_btn.setFixedHeight(36)
@@ -370,4 +383,4 @@ class PrincipalView(QWidget):
 
     def _on_add_tratamiento(self, patient_id):
         if self.navigate_callback:
-            self.navigate_callback("form", patient_id)
+            self.navigate_callback("add_tratamiento", patient_id)

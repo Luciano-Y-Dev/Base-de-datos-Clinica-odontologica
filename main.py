@@ -1,24 +1,35 @@
 import sys
 import os
-from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
+import logging
+from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QFileDialog, QMessageBox
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon
+import platformdirs
 from views.principal_view import PrincipalView
 from views.form_patient import FormPatient
 from views.patient_detail_view import PatientDetailView
 from views.abonos_view import AbonosView
 from views.export_view import ExportView
-from database.createDB import (
-    createTable_PACIENTES, createTable_ANTECEDENTES,
-    createTable_EXAMEN, createTable_ODONTOGRAMA,
-    createTable_ODONTOGRAMA_DETAILS, createTable_TRATAMIENTO,
-    migrateTRATAMIENTO_add_date, createTable_ABONO
-)
+from database.migrations import initialize_database
+from services import backup_service
 from services.patient_service import (
     get_patients_ordered, get_patients_with_remaining,
     get_patient_full_data, get_odontogram_details,
     filter_patients
 )
 from services.abono_service import get_patients_paid, get_patient_abonos, get_patients_with_remaining as get_patients_pending
+
+_APP_NAME = "clinica_odontologica"
+
+
+def _setup_logging():
+    log_dir = os.path.join(platformdirs.user_data_dir(_APP_NAME, appauthor=False), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    logging.basicConfig(
+        filename=os.path.join(log_dir, "app.log"),
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
 
 
 class MainW(QMainWindow):
@@ -82,29 +93,36 @@ class MainW(QMainWindow):
             self.stack.removeWidget(old)
             old.deleteLater()
 
+    def _make_principal_view(self):
+        return PrincipalView(
+            patients=get_patients_with_remaining(),
+            filter_fn=filter_patients,
+            navigate_callback=self.navigate
+        )
+
+    def _make_form_view(self, patient_id):
+        data = None
+        if patient_id:
+            data = get_patient_full_data(patient_id)
+            if data:
+                data["has_abonos"] = len(get_patient_abonos(patient_id)) > 0
+                if data["odontograma"]:
+                    data["odontograma_details"] = get_odontogram_details(data["odontograma"].id)
+                else:
+                    data["odontograma_details"] = []
+        view = FormPatient(data=data, navigate_callback=self.navigate)
+        view.saved.connect(self._on_saved)
+        return view
+
     def navigate(self, action, patient_id=None):
         if action == "principal":
-            patients = get_patients_with_remaining()
-            view = PrincipalView(
-                patients=patients,
-                filter_fn=filter_patients,
-                navigate_callback=self.navigate
-            )
-            self._switch_view(view)
+            self._switch_view(self._make_principal_view())
         elif action == "form":
-            data = None
-            if patient_id:
-                data = get_patient_full_data(patient_id)
-                if data:
-                    abonos = get_patient_abonos(patient_id)
-                    data["last_abono"] = abonos[-1] if abonos else None
-                    if data["odontograma"]:
-                        data["odontograma_details"] = get_odontogram_details(data["odontograma"].id)
-                    else:
-                        data["odontograma_details"] = []
-            view = FormPatient(data=data, navigate_callback=self.navigate)
-            view.saved.connect(self._on_saved)
+            self._switch_view(self._make_form_view(patient_id))
+        elif action == "add_tratamiento":
+            view = self._make_form_view(patient_id)
             self._switch_view(view)
+            QTimer.singleShot(0, view.prompt_new_tratamiento)
         elif action == "detail":
             data = get_patient_full_data(patient_id) if patient_id else None
             if data:
@@ -129,37 +147,65 @@ class MainW(QMainWindow):
                 navigate_callback=self.navigate
             )
             self._switch_view(view)
+        elif action == "backup":
+            self._run_backup()
+        elif action == "restore":
+            self._run_restore()
+
+    def _run_backup(self):
+        dest = QFileDialog.getExistingDirectory(
+            self, "Elegir carpeta donde guardar el respaldo (ej. USB)"
+        )
+        if not dest:
+            return
+        try:
+            path = backup_service.create_backup(dest)
+            QMessageBox.information(self, "Respaldo creado", f"Respaldo guardado en:\n{path}")
+        except Exception as ex:
+            logging.getLogger(__name__).exception("Error al crear respaldo")
+            QMessageBox.critical(self, "Error", f"No se pudo crear el respaldo:\n{ex}")
+
+    def _run_restore(self):
+        answer = QMessageBox.question(
+            self, "Restaurar respaldo",
+            "Se reemplazarán TODOS los datos actuales por los del respaldo.\n"
+            "Se creará primero un respaldo de seguridad del estado actual.\n\n"
+            "¿Deseas continuar?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if answer != QMessageBox.Yes:
+            return
+        src = QFileDialog.getExistingDirectory(
+            self, "Selecciona la carpeta del respaldo (debe contener Clinica.db)"
+        )
+        if not src:
+            return
+        try:
+            backup_service.restore_backup(src)
+            QMessageBox.information(self, "Restaurado", "El respaldo se restauró correctamente.")
+            self.navigate("principal")
+        except Exception as ex:
+            logging.getLogger(__name__).exception("Error al restaurar respaldo")
+            QMessageBox.critical(self, "Error", f"No se pudo restaurar el respaldo:\n{ex}")
 
     def _on_saved(self):
-        patients = get_patients_with_remaining()
-        view = PrincipalView(
-            patients=patients,
-            filter_fn=filter_patients,
-            navigate_callback=self.navigate
-        )
-        self._switch_view(view)
+        self._switch_view(self._make_principal_view())
 
 
 def main():
-    import ctypes
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("clinica.odontologica.app")
-
-    createTable_PACIENTES()
-    createTable_ANTECEDENTES()
-    createTable_EXAMEN()
-    createTable_ODONTOGRAMA()
-    createTable_ODONTOGRAMA_DETAILS()
-    createTable_TRATAMIENTO()
-    migrateTRATAMIENTO_add_date()
-    createTable_ABONO()
+    _setup_logging()
+    initialize_database()
 
     app = QApplication(sys.argv)
     icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "clinica-icon.ico")
     app.setWindowIcon(QIcon(icon_path))
+    app.aboutToQuit.connect(backup_service.auto_backup)
     window = MainW()
     window.show()
     sys.exit(app.exec())
 
 
 if __name__ == "__main__":
+    import ctypes
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("clinica.odontologica.app")
     main()

@@ -1,7 +1,8 @@
 from fpdf import FPDF
 from services.patient_service import (
     get_patient, get_patient_antecedentes, get_patient_examen,
-    get_patient_odontogram, get_odontogram_details, get_patient_remaining
+    get_patient_odontogram, get_odontogram_details, get_patient_remaining,
+    get_patient_tratamiento
 )
 from services.abono_service import get_patient_abonos
 
@@ -92,6 +93,7 @@ def generate_patients_pdf(patient_ids: list[int], output_path: str) -> str:
         odontograma = get_patient_odontogram(pid)
         remaining = get_patient_remaining(pid)
         abonos = get_patient_abonos(pid)
+        tratamientos = get_patient_tratamiento(pid)
 
         odonto_details = []
         if odontograma:
@@ -150,6 +152,16 @@ def generate_patients_pdf(patient_ids: list[int], output_path: str) -> str:
                     for i, v in enumerate(vals):
                         pdf.cell(col_w[i], 5, v, border=1, new_x="END")
                     pdf.ln()
+            pdf.ln(2)
+
+        if tratamientos:
+            pdf.section_title("Tratamientos")
+            for t in tratamientos:
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.cell(30, 5, _safe(t.date) or "Sin fecha", new_x="END")
+                pdf.set_font("Helvetica", "", 9)
+                pdf.multi_cell(0, 5, _safe(t.diagnosis), new_x="LMARGIN", new_y="NEXT")
+                pdf.ln(1)
             pdf.ln(2)
 
         if abonos:

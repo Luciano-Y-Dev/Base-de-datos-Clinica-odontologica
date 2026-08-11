@@ -1,10 +1,11 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QLineEdit, QDateEdit, QMessageBox
+    QFrame, QScrollArea, QLineEdit, QDateEdit, QMessageBox,
+    QDialog, QDialogButtonBox
 )
 from PySide6.QtCore import Qt, Signal, QDate
 from PySide6.QtGui import QFont
-from services.abono_service import add_abono
+from services.abono_service import add_abono, update_abono, delete_abono
 from services.patient_service import filter_patients
 from views.components.search_filter import SearchFilter
 
@@ -483,6 +484,28 @@ class AbonosView(QWidget):
             rem_lbl.setAlignment(Qt.AlignRight)
             row_lo.addWidget(rem_lbl, 1)
 
+            edit_btn = QPushButton("Editar")
+            edit_btn.setFixedSize(56, 24)
+            edit_btn.setCursor(Qt.PointingHandCursor)
+            edit_btn.setFont(QFont("Segoe UI", 8))
+            edit_btn.setStyleSheet(f"""
+                QPushButton {{ background-color: {Second}; color: white; border: none; border-radius: 6px; }}
+                QPushButton:hover {{ background-color: #C0607A; }}
+            """)
+            edit_btn.clicked.connect(lambda _, ab=a: self._edit_abono(ab))
+            row_lo.addWidget(edit_btn)
+
+            del_btn = QPushButton("✕")
+            del_btn.setFixedSize(24, 24)
+            del_btn.setCursor(Qt.PointingHandCursor)
+            del_btn.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            del_btn.setStyleSheet(f"""
+                QPushButton {{ background-color: transparent; color: #C0607A; border: 1px solid #E8B4C0; border-radius: 6px; }}
+                QPushButton:hover {{ background-color: #FDECEF; }}
+            """)
+            del_btn.clicked.connect(lambda _, ab=a: self._delete_abono(ab))
+            row_lo.addWidget(del_btn)
+
             self.abonos_list_lo.addWidget(row)
 
         self.abonos_list_lo.addStretch()
@@ -502,3 +525,147 @@ class AbonosView(QWidget):
                 self.navigate_callback("abonos")
         except ValueError as ex:
             QMessageBox.warning(self, "Error", str(ex))
+
+    def _edit_abono(self, abono):
+        dialog = _AbonoEditDialog(abono, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        date, amount_text, desc = dialog.get_data()
+        try:
+            update_abono(self.selected_patient_id, abono.id, amount_text, date, desc)
+            if self.navigate_callback:
+                self.navigate_callback("abonos")
+        except ValueError as ex:
+            QMessageBox.warning(self, "Error", str(ex))
+
+    def _delete_abono(self, abono):
+        answer = QMessageBox.question(
+            self, "Eliminar abono",
+            f"¿Eliminar el abono de ${abono.amount:.2f} del {abono.date or '—'}?\n"
+            "Los saldos posteriores se recalcularán.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if answer != QMessageBox.Yes:
+            return
+        try:
+            delete_abono(self.selected_patient_id, abono.id)
+            if self.navigate_callback:
+                self.navigate_callback("abonos")
+        except ValueError as ex:
+            QMessageBox.warning(self, "Error", str(ex))
+
+
+class _AbonoEditDialog(QDialog):
+    def __init__(self, abono, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Editar abono")
+        self.setMinimumWidth(380)
+        self.setStyleSheet(f"background-color: {White};")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(12)
+
+        title = QLabel("Editar abono")
+        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        title.setStyleSheet(f"color: {Txt1}; background: transparent;")
+        layout.addWidget(title)
+
+        date_lbl = QLabel("Fecha")
+        date_lbl.setFont(QFont("Segoe UI", 10))
+        date_lbl.setStyleSheet(f"color: {Txt2}; background: transparent;")
+        layout.addWidget(date_lbl)
+
+        self.date_edit = QDateEdit()
+        self.date_edit.setCalendarPopup(True)
+        self.date_edit.setFont(QFont("Segoe UI", 10))
+        self.date_edit.setFixedHeight(34)
+        self.date_edit.setStyleSheet(f"""
+            QDateEdit {{
+                background-color: {pale_pink};
+                border: none;
+                border-radius: 6px;
+                padding: 4px 8px;
+                color: {Txt1};
+            }}
+            QDateEdit::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 24px;
+                border: none;
+            }}
+        """)
+        parsed = QDate.fromString(abono.date, "yyyy-MM-dd") if abono.date else QDate()
+        self.date_edit.setDate(parsed if parsed.isValid() else QDate.currentDate())
+        layout.addWidget(self.date_edit)
+
+        amount_lbl = QLabel("Monto ($)")
+        amount_lbl.setFont(QFont("Segoe UI", 10))
+        amount_lbl.setStyleSheet(f"color: {Txt2}; background: transparent;")
+        layout.addWidget(amount_lbl)
+
+        self.amount_edit = QLineEdit()
+        self.amount_edit.setText(f"{abono.amount:.2f}" if abono.amount is not None else "")
+        self.amount_edit.setFont(QFont("Segoe UI", 10))
+        self.amount_edit.setFixedHeight(34)
+        self.amount_edit.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {pale_pink};
+                border: none;
+                border-radius: 6px;
+                padding: 4px 8px;
+                color: {Txt1};
+            }}
+        """)
+        layout.addWidget(self.amount_edit)
+
+        desc_lbl = QLabel("Descripción")
+        desc_lbl.setFont(QFont("Segoe UI", 10))
+        desc_lbl.setStyleSheet(f"color: {Txt2}; background: transparent;")
+        layout.addWidget(desc_lbl)
+
+        self.desc_edit = QLineEdit()
+        self.desc_edit.setText(abono.description or "")
+        self.desc_edit.setFont(QFont("Segoe UI", 10))
+        self.desc_edit.setFixedHeight(34)
+        self.desc_edit.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {pale_pink};
+                border: none;
+                border-radius: 6px;
+                padding: 4px 8px;
+                color: {Txt1};
+            }}
+        """)
+        layout.addWidget(self.desc_edit)
+
+        note = QLabel("Los saldos posteriores se recalcularán automáticamente.")
+        note.setFont(QFont("Segoe UI", 9))
+        note.setStyleSheet(f"color: {Txt2}; background: transparent;")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        for btn in buttons.buttons():
+            btn.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
+            btn.setFixedHeight(32)
+            if btn == buttons.button(QDialogButtonBox.Save):
+                btn.setStyleSheet(f"""
+                    QPushButton {{ background-color: {Second}; color: white; border: none; border-radius: 8px; padding: 0 20px; }}
+                    QPushButton:hover {{ background-color: #C0607A; }}
+                """)
+            else:
+                btn.setStyleSheet(f"""
+                    QPushButton {{ background-color: transparent; color: {Txt2}; border: 1px solid {PrimaryBorder}; border-radius: 8px; padding: 0 20px; }}
+                    QPushButton:hover {{ background-color: {pale_pink}; }}
+                """)
+        layout.addWidget(buttons)
+
+    def get_data(self):
+        return (
+            self.date_edit.date().toString("yyyy-MM-dd"),
+            self.amount_edit.text().strip(),
+            self.desc_edit.text().strip(),
+        )

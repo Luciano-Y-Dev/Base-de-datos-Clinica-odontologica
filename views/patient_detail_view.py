@@ -1,12 +1,12 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QMessageBox, QDialog, QLineEdit, QTextEdit,
-    QDateEdit, QDialogButtonBox
+    QFrame, QScrollArea, QMessageBox, QDialog
 )
-from PySide6.QtCore import Qt, Signal, QDate
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 from services.patient_service import delete_patient
 from services.tratamiento_service import add_tratamiento, update_tratamiento, delete_tratamiento, get_patient_tratamientos
+from views.components.tratamiento_dialog import TratamientoDialog
 
 Primary = "#C9929B"
 PrimaryBorder = "#E8D5D8"
@@ -405,6 +405,17 @@ class PatientDetailView(QWidget):
                 edit_btn.clicked.connect(lambda _, tid=t.id, txt=t.diagnosis, dt=t.date: self._on_edit_tratamiento(tid, txt, dt))
                 header_lo.addWidget(edit_btn)
 
+                del_btn = QPushButton("Eliminar")
+                del_btn.setFixedHeight(28)
+                del_btn.setCursor(Qt.PointingHandCursor)
+                del_btn.setFont(QFont("Segoe UI", 9))
+                del_btn.setStyleSheet(f"""
+                    QPushButton {{ background-color: transparent; color: #C0607A; border: 1px solid #E8B4C0; border-radius: 6px; padding: 0 12px; }}
+                    QPushButton:hover {{ background-color: #FDECEF; }}
+                """)
+                del_btn.clicked.connect(lambda _, tid=t.id: self._on_delete_tratamiento(tid))
+                header_lo.addWidget(del_btn)
+
                 item_lo.addLayout(header_lo)
 
                 text_lbl = QLabel(t.diagnosis or "")
@@ -501,95 +512,21 @@ class PatientDetailView(QWidget):
             except Exception as ex:
                 QMessageBox.critical(self, "Error", f"No se pudo actualizar: {ex}")
 
+    def _on_delete_tratamiento(self, tratamiento_id):
+        answer = QMessageBox.question(
+            self, "Eliminar tratamiento",
+            "¿Eliminar este tratamiento? Esta acción no se puede deshacer.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if answer != QMessageBox.Yes:
+            return
+        try:
+            delete_tratamiento(tratamiento_id)
+            self._refresh_tratamientos()
+        except Exception as ex:
+            QMessageBox.critical(self, "Error", f"No se pudo eliminar: {ex}")
+
     def _refresh_tratamientos(self):
         self.tratamientos = get_patient_tratamientos(self.patient_id)
         self.navigate_callback("detail", self.patient_id) if self.navigate_callback else None
 
-
-class TratamientoDialog(QDialog):
-    def __init__(self, text="", date="", parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Tratamiento")
-        self.setMinimumWidth(450)
-        self.setMinimumHeight(250)
-        self.setStyleSheet(f"background-color: {White};")
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
-
-        title = QLabel("Agregar Tratamiento" if not text else "Editar Tratamiento")
-        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {Txt1}; background: transparent;")
-        layout.addWidget(title)
-
-        date_label = QLabel("Fecha")
-        date_label.setFont(QFont("Segoe UI", 11))
-        date_label.setStyleSheet(f"color: {Txt2}; background: transparent;")
-        layout.addWidget(date_label)
-
-        self.date_edit = QDateEdit()
-        self.date_edit.setCalendarPopup(True)
-        self.date_edit.setFont(QFont("Segoe UI", 11))
-        self.date_edit.setStyleSheet(f"""
-            QDateEdit {{
-                background-color: {pale_pink};
-                border: none;
-                border-radius: 8px;
-                padding: 8px 12px;
-                color: {Txt1};
-            }}
-            QDateEdit::drop-down {{
-                subcontrol-origin: padding;
-                subcontrol-position: center right;
-                width: 24px;
-                border: none;
-            }}
-        """)
-        if date:
-            self.date_edit.setDate(QDate.fromString(date, "yyyy-MM-dd"))
-        else:
-            self.date_edit.setDate(QDate.currentDate())
-        layout.addWidget(self.date_edit)
-
-        text_label = QLabel("Tratamiento (diagnóstico y procedimiento)")
-        text_label.setFont(QFont("Segoe UI", 11))
-        text_label.setStyleSheet(f"color: {Txt2}; background: transparent;")
-        layout.addWidget(text_label)
-
-        self.text_edit = QTextEdit()
-        self.text_edit.setPlaceholderText("Describa el diagnóstico y tratamiento realizado...")
-        self.text_edit.setPlainText(text)
-        self.text_edit.setFont(QFont("Segoe UI", 11))
-        self.text_edit.setMinimumHeight(100)
-        self.text_edit.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {pale_pink};
-                border: none;
-                border-radius: 8px;
-                padding: 10px 12px;
-                color: {Txt1};
-            }}
-        """)
-        layout.addWidget(self.text_edit)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        for btn in buttons.buttons():
-            btn.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
-            btn.setFixedHeight(32)
-            if btn == buttons.button(QDialogButtonBox.Save):
-                btn.setStyleSheet(f"""
-                    QPushButton {{ background-color: {Second}; color: white; border: none; border-radius: 8px; padding: 0 20px; }}
-                    QPushButton:hover {{ background-color: #C0607A; }}
-                """)
-            else:
-                btn.setStyleSheet(f"""
-                    QPushButton {{ background-color: transparent; color: {Txt2}; border: 1px solid {PrimaryBorder}; border-radius: 8px; padding: 0 20px; }}
-                    QPushButton:hover {{ background-color: {pale_pink}; }}
-                """)
-        layout.addWidget(buttons)
-
-    def get_data(self):
-        return self.text_edit.toPlainText().strip(), self.date_edit.date().toString("yyyy-MM-dd")

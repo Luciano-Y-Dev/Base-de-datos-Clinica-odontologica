@@ -4,7 +4,7 @@ from database.createDB import save_patient_atomic, deleteRow_PACIENTES, readODON
 from database.utils import (
     readPACIENTE, readANTECEDENTES, readEXAMEN,
     readODONTOGRAMA_by_patient, readTRATAMIENTO_by_patient, readREMAINING, readTable_PACIENTES_ordered,
-    readPATIENTS_with_remaining_all
+    readPATIENTS_with_remaining_all, readABONOS_ordered
 )
 
 
@@ -44,10 +44,12 @@ def _prepare_antecedentes(ant_checks: list[tuple[Any, CheckBox, CheckBox]]) -> l
     return ad
 
 
-def _prepare_odontogram(odontogram_widget: OdontogramWidget) -> dict[str, Any] | None:
+def _prepare_odontogram(odontogram_widget: OdontogramWidget, notes: str = "") -> dict[str, Any] | None:
     data = odontogram_widget.get_data()
-    if data.get("affections"):
-        return {"notes": "", "affections": data["affections"]}
+    affections = data.get("affections", [])
+    notes = (notes or "").strip()
+    if affections or notes:
+        return {"notes": notes, "affections": affections}
     return None
 
 
@@ -76,9 +78,19 @@ def save_patient(
     ed = [form_data.get("extraoral", ""), form_data.get("intraoralTB", ""),
           form_data.get("intraoralTD", ""), form_data.get("periodontal", ""),
           form_data.get("PA", "")]
-    od = _prepare_odontogram(odontogram_widget)
-    ab = _prepare_abono(form_data.get("cost", ""), form_data.get("abono", ""),
-                        form_data.get("descAbono", ""))
+
+    od = _prepare_odontogram(odontogram_widget, form_data.get("odontogramNotes", ""))
+    if od is None and patient_id and readODONTOGRAMA_by_patient(patient_id):
+        # El paciente tenia odontograma y la ficha quedo vacia: reemplazo
+        # total para reflejar que se limpiaron las afecciones/notas.
+        od = {"notes": "", "affections": []}
+
+    # El abono inicial solo se crea con la ficha; si el paciente ya tiene
+    # pagos, su historial se gestiona exclusivamente desde la vista Abonos.
+    ab = None
+    if patient_id is None or not readABONOS_ordered(patient_id):
+        ab = _prepare_abono(form_data.get("cost", ""), form_data.get("abono", ""),
+                            form_data.get("descAbono", ""))
 
     return save_patient_atomic(
         patient_id, form_data["name"], form_data["lastName"], age, ci,
@@ -144,6 +156,17 @@ def get_patient_full_data(patient_id: int) -> dict[str, Any] | None:
         "odontograma": readODONTOGRAMA_by_patient(patient_id),
         "tratamientos": readTRATAMIENTO_by_patient(patient_id),
     }
+
+
+def ci_exists(ci, exclude_patient_id: int | None = None) -> bool:
+    """True si otro paciente ya tiene registrada esa CI."""
+    target = str(ci).strip()
+    for p in readTable_PACIENTES_ordered():
+        if exclude_patient_id is not None and p.id == exclude_patient_id:
+            continue
+        if str(p.CI or "").strip() == target:
+            return True
+    return False
 
 
 def filter_patients(
