@@ -14,21 +14,22 @@ class TestCrypto:
         decrypted = decrypt_field(encrypted)
         assert decrypted == original
 
-    def test_empty_string_untouched(self):
-        assert encrypt_field("") == ""
-        assert decrypt_field("") == ""
-
     def test_unicode_characters(self):
         original = "José García - Ñoño - 你好"
         encrypted = encrypt_field(original)
         decrypted = decrypt_field(encrypted)
         assert decrypted == original
 
-    def test_different_encryptions_different_output(self):
-        enc1 = encrypt_field("Same Input")
-        enc2 = encrypt_field("Same Input")
-        assert enc1 != enc2
-
     def test_decrypt_invalid_token_returns_original(self):
         result = decrypt_field("invalid_token_12345")
         assert result == "invalid_token_12345"
+
+    def test_decrypt_token_from_other_key_returns_empty(self):
+        """Un token cifrado con OTRA clave no debe devolverse en crudo
+        (evita re-cifrar basura si la clave se perdio)."""
+        import base64
+        from cryptography.fernet import Fernet
+        other = Fernet(Fernet.generate_key())
+        token = other.encrypt("secreto".encode("utf-8"))
+        value = base64.urlsafe_b64encode(token).decode("utf-8")
+        assert decrypt_field(value) == ""

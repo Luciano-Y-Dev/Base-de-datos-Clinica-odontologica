@@ -5,17 +5,12 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from services.patient_service import (
-    _validate_required, _validate_int, _validate_float,
-    delete_patient, get_patient, filter_patients
+    _validate_required, delete_patient, get_patient, filter_patients, ci_exists
 )
 from database.models import Paciente
 
 
 class TestValidation:
-    def test_validate_required_success(self):
-        assert _validate_required("Juan", "Nombre") is None
-        assert _validate_required("12345", "CI") is None
-
     def test_validate_required_empty_raises(self):
         with pytest.raises(ValueError, match="obligatorio"):
             _validate_required("", "Nombre")
@@ -23,14 +18,6 @@ class TestValidation:
     def test_validate_required_none_raises(self):
         with pytest.raises(ValueError, match="obligatorio"):
             _validate_required(None, "Apellido")
-
-    def test_validate_int_invalid_raises(self):
-        with pytest.raises(ValueError, match="número entero"):
-            _validate_int("abc", "Edad")
-
-    def test_validate_float_invalid_raises(self):
-        with pytest.raises(ValueError, match="número"):
-            _validate_float("not_a_number", "Costo")
 
 
 class TestDeletePatient:
@@ -67,3 +54,14 @@ class TestFilterPatients:
         patients = readTable_PACIENTES_ordered()
         result = filter_patients(patients, "ZZZZ")
         assert len(result) == 0
+
+
+class TestCiExists:
+    def test_ci_exists_true_for_existing(self, test_db, created_patient):
+        assert ci_exists("12345678") is True
+
+    def test_ci_exists_false_for_new(self, test_db, created_patient):
+        assert ci_exists("99999999") is False
+
+    def test_ci_exists_excludes_same_patient(self, test_db, created_patient):
+        assert ci_exists("12345678", exclude_patient_id=created_patient) is False

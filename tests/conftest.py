@@ -9,7 +9,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from database.crypto import _load_or_create_key, encrypt_field, decrypt_field
 from database.createDB import (
     createTable_PACIENTES, createTable_ANTECEDENTES, createTable_EXAMEN,
-    createTable_ODONTOGRAMA, createTable_ODONTOGRAMA_DETAILS, createTable_TRATAMIENTO, createTable_ABONO,
+    createTable_ODONTOGRAMA, createTable_ODONTOGRAMA_DETAILS, createTable_ABONO,
+    createTable_TRATAMIENTO,
     createRow_PACIENTES, createRow_ANTECEDENTES, createRow_EXAMEN,
     createRow_ODONTOGRAMA, createRow_ODONTOGRAMA_DETAILS, createRow_ABONO,
     getConnection
@@ -77,30 +78,3 @@ def created_patient(test_db, sample_patient_data):
     )
     return patient_id
 
-
-@pytest.fixture
-def sample_antecedentes_data():
-    """Return sample antecedentes data."""
-    return [
-        "Dolor de oido", None, "Penicilina", None, None,
-        None, None, None, None, None, None, None, None, None,
-        "VIH Positivo", None, None, None, None, None
-    ]
-
-
-@pytest.fixture
-def sample_examen_data():
-    """Return sample examen data."""
-    return ["Normal", "Sin hallazgos", "Sin hallazgos", "Sano", "Normal"]
-
-
-@pytest.fixture
-def sample_abono_data():
-    """Return sample abono data."""
-    return {
-        "date": "2024-01-15",
-        "description": "Limpieza dental",
-        "treatmentCost": 100.0,
-        "amount": 50.0,
-        "remaining": 50.0,
-    }
