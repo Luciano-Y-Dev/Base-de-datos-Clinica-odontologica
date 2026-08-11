@@ -1,10 +1,12 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QMessageBox
+    QFrame, QScrollArea, QMessageBox, QDialog, QLineEdit, QTextEdit,
+    QDateEdit, QDialogButtonBox
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QDate
 from PySide6.QtGui import QFont
 from services.patient_service import delete_patient
+from services.tratamiento_service import add_tratamiento, update_tratamiento, delete_tratamiento, get_patient_tratamientos
 
 Primary = "#C9929B"
 PrimaryBorder = "#E8D5D8"
@@ -89,6 +91,7 @@ class PatientDetailView(QWidget):
         self.paciente = data["paciente"] if data else None
         self.antecedentes = data["antecedentes"] if data else None
         self.examen = data["examen"] if data else None
+        self.tratamientos = data["tratamientos"] if data else []
         self.remaining = data["remaining"] if data else 0.0
         self.odontograma = data["odontograma"] if data else None
         self.odontograma_details = data.get("odontograma_details", []) if data else []
@@ -133,6 +136,7 @@ class PatientDetailView(QWidget):
         body_lo.addWidget(self._section_antecedentes())
         body_lo.addWidget(self._section_examen())
         body_lo.addWidget(self._section_odontogram())
+        body_lo.addWidget(self._section_tratamiento())
         body_lo.addWidget(self._section_abonos())
 
         body_lo.addStretch()
@@ -189,6 +193,17 @@ class PatientDetailView(QWidget):
 
         if self.paciente:
             lo.addSpacing(20)
+
+            add_trat_btn = QPushButton("Añadir Tratamiento")
+            add_trat_btn.setFixedHeight(38)
+            add_trat_btn.setCursor(Qt.PointingHandCursor)
+            add_trat_btn.setFont(QFont("Segoe UI", 11, QFont.Weight.DemiBold))
+            add_trat_btn.setStyleSheet(f"""
+                QPushButton {{ background-color: #6B9E78; color: white; border: 1px solid #5A8A66; border-radius: 8px; padding: 0 20px; }}
+                QPushButton:hover {{ background-color: #5A8A66; border-color: #4A7656; }}
+            """)
+            add_trat_btn.clicked.connect(self._on_add_tratamiento)
+            lo.addWidget(add_trat_btn)
 
             edit_btn = QPushButton("Editar")
             edit_btn.setFixedHeight(38)
@@ -348,6 +363,72 @@ class PatientDetailView(QWidget):
 
         return frame
 
+    def _section_tratamiento(self):
+        frame, lo = _card("Tratamiento")
+
+        if not self.tratamientos:
+            empty = QLabel("Sin tratamientos registrados")
+            empty.setFont(QFont("Segoe UI", 12))
+            empty.setStyleSheet(f"color: {Txt2}; background: transparent;")
+            lo.addWidget(empty)
+        else:
+            for t in self.tratamientos:
+                item_frame = QFrame()
+                item_frame.setStyleSheet(f"""
+                    QFrame {{
+                        background-color: {pale_pink};
+                        border: none;
+                        border-radius: 8px;
+                        padding: 8px;
+                    }}
+                """)
+                item_lo = QVBoxLayout(item_frame)
+                item_lo.setContentsMargins(12, 10, 12, 10)
+                item_lo.setSpacing(4)
+
+                header_lo = QHBoxLayout()
+                date_lbl = QLabel(t.date or "Sin fecha")
+                date_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
+                date_lbl.setStyleSheet(f"color: {Second}; background: transparent;")
+                header_lo.addWidget(date_lbl)
+
+                header_lo.addStretch()
+
+                edit_btn = QPushButton("Editar")
+                edit_btn.setFixedHeight(28)
+                edit_btn.setCursor(Qt.PointingHandCursor)
+                edit_btn.setFont(QFont("Segoe UI", 9))
+                edit_btn.setStyleSheet(f"""
+                    QPushButton {{ background-color: {Second}; color: white; border: none; border-radius: 6px; padding: 0 12px; }}
+                    QPushButton:hover {{ background-color: #C0607A; }}
+                """)
+                edit_btn.clicked.connect(lambda _, tid=t.id, txt=t.diagnosis, dt=t.date: self._on_edit_tratamiento(tid, txt, dt))
+                header_lo.addWidget(edit_btn)
+
+                item_lo.addLayout(header_lo)
+
+                text_lbl = QLabel(t.diagnosis or "")
+                text_lbl.setFont(QFont("Segoe UI", 11))
+                text_lbl.setStyleSheet(f"color: {Txt1}; background: transparent;")
+                text_lbl.setWordWrap(True)
+                item_lo.addWidget(text_lbl)
+
+                lo.addWidget(item_frame)
+
+        add_btn = QPushButton("+ Añadir nuevo tratamiento")
+        add_btn.setFixedHeight(36)
+        add_btn.setCursor(Qt.PointingHandCursor)
+        add_btn.setFont(QFont("Segoe UI", 10))
+        add_btn.setStyleSheet(f"""
+            QPushButton {{ background-color: {Second}; color: white; border: none; border-radius: 8px; padding: 0 20px; }}
+            QPushButton:hover {{ background-color: #C0607A; }}
+            QPushButton:pressed {{ background-color: #A84860; }}
+        """)
+        add_btn.clicked.connect(self._on_add_tratamiento)
+        lo.addWidget(add_btn)
+
+        return frame
+
     def _section_abonos(self):
         frame, lo = _card("Saldo y Abonos")
 
@@ -399,3 +480,116 @@ class PatientDetailView(QWidget):
     def _on_edit(self):
         if self.navigate_callback:
             self.navigate_callback("form", self.patient_id)
+
+    def _on_add_tratamiento(self):
+        dialog = TratamientoDialog(parent=self)
+        if dialog.exec() == QDialog.Accepted:
+            text, date = dialog.get_data()
+            try:
+                add_tratamiento(self.patient_id, text, date)
+                self._refresh_tratamientos()
+            except Exception as ex:
+                QMessageBox.critical(self, "Error", f"No se pudo guardar: {ex}")
+
+    def _on_edit_tratamiento(self, tratamiento_id, current_text, current_date):
+        dialog = TratamientoDialog(text=current_text, date=current_date, parent=self)
+        if dialog.exec() == QDialog.Accepted:
+            text, date = dialog.get_data()
+            try:
+                update_tratamiento(tratamiento_id, text, date)
+                self._refresh_tratamientos()
+            except Exception as ex:
+                QMessageBox.critical(self, "Error", f"No se pudo actualizar: {ex}")
+
+    def _refresh_tratamientos(self):
+        self.tratamientos = get_patient_tratamientos(self.patient_id)
+        self.navigate_callback("detail", self.patient_id) if self.navigate_callback else None
+
+
+class TratamientoDialog(QDialog):
+    def __init__(self, text="", date="", parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Tratamiento")
+        self.setMinimumWidth(450)
+        self.setMinimumHeight(250)
+        self.setStyleSheet(f"background-color: {White};")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        title = QLabel("Agregar Tratamiento" if not text else "Editar Tratamiento")
+        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        title.setStyleSheet(f"color: {Txt1}; background: transparent;")
+        layout.addWidget(title)
+
+        date_label = QLabel("Fecha")
+        date_label.setFont(QFont("Segoe UI", 11))
+        date_label.setStyleSheet(f"color: {Txt2}; background: transparent;")
+        layout.addWidget(date_label)
+
+        self.date_edit = QDateEdit()
+        self.date_edit.setCalendarPopup(True)
+        self.date_edit.setFont(QFont("Segoe UI", 11))
+        self.date_edit.setStyleSheet(f"""
+            QDateEdit {{
+                background-color: {pale_pink};
+                border: none;
+                border-radius: 8px;
+                padding: 8px 12px;
+                color: {Txt1};
+            }}
+            QDateEdit::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 24px;
+                border: none;
+            }}
+        """)
+        if date:
+            self.date_edit.setDate(QDate.fromString(date, "yyyy-MM-dd"))
+        else:
+            self.date_edit.setDate(QDate.currentDate())
+        layout.addWidget(self.date_edit)
+
+        text_label = QLabel("Tratamiento (diagnóstico y procedimiento)")
+        text_label.setFont(QFont("Segoe UI", 11))
+        text_label.setStyleSheet(f"color: {Txt2}; background: transparent;")
+        layout.addWidget(text_label)
+
+        self.text_edit = QTextEdit()
+        self.text_edit.setPlaceholderText("Describa el diagnóstico y tratamiento realizado...")
+        self.text_edit.setPlainText(text)
+        self.text_edit.setFont(QFont("Segoe UI", 11))
+        self.text_edit.setMinimumHeight(100)
+        self.text_edit.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {pale_pink};
+                border: none;
+                border-radius: 8px;
+                padding: 10px 12px;
+                color: {Txt1};
+            }}
+        """)
+        layout.addWidget(self.text_edit)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        for btn in buttons.buttons():
+            btn.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
+            btn.setFixedHeight(32)
+            if btn == buttons.button(QDialogButtonBox.Save):
+                btn.setStyleSheet(f"""
+                    QPushButton {{ background-color: {Second}; color: white; border: none; border-radius: 8px; padding: 0 20px; }}
+                    QPushButton:hover {{ background-color: #C0607A; }}
+                """)
+            else:
+                btn.setStyleSheet(f"""
+                    QPushButton {{ background-color: transparent; color: {Txt2}; border: 1px solid {PrimaryBorder}; border-radius: 8px; padding: 0 20px; }}
+                    QPushButton:hover {{ background-color: {pale_pink}; }}
+                """)
+        layout.addWidget(buttons)
+
+    def get_data(self):
+        return self.text_edit.toPlainText().strip(), self.date_edit.date().toString("yyyy-MM-dd")

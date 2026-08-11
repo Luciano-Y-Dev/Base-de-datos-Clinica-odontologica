@@ -3,7 +3,7 @@ from typing import Any, Protocol
 from database.createDB import save_patient_atomic, deleteRow_PACIENTES, readODONTOGRAMA_DETAILS
 from database.utils import (
     readPACIENTE, readANTECEDENTES, readEXAMEN,
-    readODONTOGRAMA_by_patient, readREMAINING, readTable_PACIENTES_ordered,
+    readODONTOGRAMA_by_patient, readTRATAMIENTO_by_patient, readREMAINING, readTable_PACIENTES_ordered,
     readPATIENTS_with_remaining_all
 )
 
@@ -111,6 +111,10 @@ def get_patient_odontogram(patient_id: int):
     return readODONTOGRAMA_by_patient(patient_id)
 
 
+def get_patient_tratamiento(patient_id: int):
+    return readTRATAMIENTO_by_patient(patient_id)
+
+
 def get_odontogram_details(odontogram_id: int):
     return readODONTOGRAMA_DETAILS(odontogram_id)
 
@@ -138,6 +142,7 @@ def get_patient_full_data(patient_id: int) -> dict[str, Any] | None:
         "examen": readEXAMEN(patient_id),
         "remaining": get_patient_remaining(patient_id),
         "odontograma": readODONTOGRAMA_by_patient(patient_id),
+        "tratamientos": readTRATAMIENTO_by_patient(patient_id),
     }
 
 

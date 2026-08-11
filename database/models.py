@@ -27,6 +27,8 @@ Examen = namedtuple('Examen', [
 
 Odontograma = namedtuple('Odontograma', ['id', 'patientID', 'notes'])
 
+Tratamiento = namedtuple('Tratamiento', ['id', 'patientID', 'diagnosis', 'treatmentPlan', 'date'])
+
 Abono = namedtuple('Abono', [
     'id', 'patientID', 'date', 'description', 'treatmentCost',
     'amount', 'remaining'

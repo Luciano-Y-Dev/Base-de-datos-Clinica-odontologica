@@ -241,6 +241,7 @@ class PrincipalView(QWidget):
             card = PatientCard(p, navigate_callback=self.navigate_callback)
             card.delete_clicked.connect(self._on_delete)
             card.edit_clicked.connect(self._on_edit)
+            card.add_tratamiento_clicked.connect(self._on_add_tratamiento)
             self._cards_layout.addWidget(card)
 
         self._cards_layout.addStretch()
@@ -330,6 +331,7 @@ class PrincipalView(QWidget):
                 card = PatientCard(p, navigate_callback=self.navigate_callback)
                 card.delete_clicked.connect(self._on_delete)
                 card.edit_clicked.connect(self._on_edit)
+                card.add_tratamiento_clicked.connect(self._on_add_tratamiento)
                 self._cards_layout.addWidget(card)
 
             self._cards_layout.addStretch()
@@ -363,5 +365,9 @@ class PrincipalView(QWidget):
                 err.exec()
 
     def _on_edit(self, patient_id):
+        if self.navigate_callback:
+            self.navigate_callback("form", patient_id)
+
+    def _on_add_tratamiento(self, patient_id):
         if self.navigate_callback:
             self.navigate_callback("form", patient_id)

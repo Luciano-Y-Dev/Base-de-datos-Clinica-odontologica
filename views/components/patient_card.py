@@ -19,6 +19,7 @@ class PatientCard(QFrame):
     clicked = Signal(int)
     delete_clicked = Signal(int)
     edit_clicked = Signal(int)
+    add_tratamiento_clicked = Signal(int)
 
     def __init__(self, patient, navigate_callback=None, parent=None):
         super().__init__(parent)
@@ -94,6 +95,23 @@ class PatientCard(QFrame):
 
         self._edit_btn.clicked.connect(lambda: self.edit_clicked.emit(self.patient_id))
 
+        self._add_trat_btn = QPushButton()
+        self._add_trat_btn.setFixedSize(32, 32)
+        self._add_trat_btn.setCursor(Qt.PointingHandCursor)
+        self._add_trat_btn.setToolTip("Añadir tratamiento")
+        self._add_trat_btn.setIcon(QIcon(os.path.join(ASSETS_DIR, "plus.svg")))
+        self._add_trat_btn.setIconSize(QSize(16, 16))
+        self._add_trat_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: 1.5px solid #93C9A1;
+                border-radius: 16px;
+            }}
+        """)
+        btn_row.addWidget(self._add_trat_btn)
+
+        self._add_trat_btn.clicked.connect(lambda: self.add_tratamiento_clicked.emit(self.patient_id))
+
         self._delete_btn = QPushButton()
         self._delete_btn.setFixedSize(32, 32)
         self._delete_btn.setCursor(Qt.PointingHandCursor)
@@ -117,7 +135,7 @@ class PatientCard(QFrame):
         self.installEventFilter(self)
 
     def eventFilter(self, obj, event):
-        if obj == self._delete_btn or obj == self._edit_btn:
+        if obj == self._delete_btn or obj == self._edit_btn or obj == self._add_trat_btn:
             return False
 
         if obj == self and event.type() == event.Type.MouseMove:
@@ -129,6 +147,9 @@ class PatientCard(QFrame):
                     break
                 if child == self._edit_btn:
                     hovered = self._edit_btn
+                    break
+                if child == self._add_trat_btn:
+                    hovered = self._add_trat_btn
                     break
                 child = child.parentWidget()
             if hovered != self._hovered_btn:
@@ -174,6 +195,23 @@ class PatientCard(QFrame):
                 QPushButton {{
                     background-color: transparent;
                     border: 1.5px solid #B8C5D6;
+                    border-radius: 16px;
+                }}
+            """)
+
+        if self._hovered_btn == self._add_trat_btn:
+            self._add_trat_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: #E8F5E9;
+                    border: 1.5px solid #6B9E78;
+                    border-radius: 16px;
+                }}
+            """)
+        else:
+            self._add_trat_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    border: 1.5px solid #93C9A1;
                     border-radius: 16px;
                 }}
             """)

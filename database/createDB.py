@@ -390,6 +390,7 @@ def createTable_TRATAMIENTO():
     patientID INTEGER NOT NULL,
     diagnosis TEXT,
     treatmentPlan TEXT,
+    date TEXT,
     FOREIGN KEY (patientID) REFERENCES pacientes(patientID) ON DELETE CASCADE
 )
         """
@@ -397,15 +398,29 @@ def createTable_TRATAMIENTO():
     conn.commit()
     conn.close()
 
-# >>> NO USADO ACTUALMENTE - Pendiente de implementar en UI <<<
-def createRow_TRATAMIENTO(patientID, diagnosis, treatmentPlan):
+def migrateTRATAMIENTO_add_date():
+    conn = getConnection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("PRAGMA table_info(tratamiento)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'date' not in columns:
+            cursor.execute("ALTER TABLE tratamiento ADD COLUMN date TEXT")
+            conn.commit()
+    except sql.Error:
+        pass
+    finally:
+        conn.close()
+
+def createRow_TRATAMIENTO(patientID, diagnosis, treatmentPlan, date=None):
     conn = getConnection()
     try:
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO tratamiento (patientID, diagnosis, treatmentPlan) VALUES (?, ?, ?)",
-                        (patientID, diagnosis, treatmentPlan)
+        cursor.execute("INSERT INTO tratamiento (patientID, diagnosis, treatmentPlan, date) VALUES (?, ?, ?, ?)",
+                        (patientID, diagnosis, treatmentPlan, date)
                         )
         conn.commit()
+        return cursor.lastrowid
     except sql.Error as e:
         conn.rollback()
         raise e
@@ -432,12 +447,12 @@ def readTRATAMIENTO(patientID):
     finally:
         conn.close()
 
-def updateRow_TRATAMIENTO(id, diagnosis, treatmentPlan):
+def updateRow_TRATAMIENTO(id, diagnosis, treatmentPlan, date=None):
     conn = getConnection()
     try:
         cursor = conn.cursor()
-        cursor.execute("UPDATE tratamiento SET diagnosis = ?, treatmentPlan = ? WHERE ID = ?",
-                        (diagnosis, treatmentPlan, id))
+        cursor.execute("UPDATE tratamiento SET diagnosis = ?, treatmentPlan = ?, date = ? WHERE ID = ?",
+                        (diagnosis, treatmentPlan, date, id))
         conn.commit()
     except sql.Error as e:
         conn.rollback()
@@ -634,4 +649,5 @@ if __name__ == "__main__":
     createTable_ODONTOGRAMA()
     createTable_ODONTOGRAMA_DETAILS()
     createTable_TRATAMIENTO()
+    migrateTRATAMIENTO_add_date()
     createTable_ABONO()

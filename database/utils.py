@@ -1,6 +1,6 @@
 from .createDB import getConnection
 from .crypto import decrypt_field
-from .models import Paciente, PacienteConSaldo, Antecedentes, Examen, Odontograma, Abono
+from .models import Paciente, PacienteConSaldo, Antecedentes, Examen, Odontograma, Tratamiento, Abono
 
 def readTable_PACIENTES_ordered():
     conn = getConnection()
@@ -88,6 +88,16 @@ def readODONTOGRAMA_by_patient(patientID):
         if r:
             return Odontograma(r[0], r[1], r[2])
         return None
+    finally:
+        conn.close()
+
+def readTRATAMIENTO_by_patient(patientID):
+    conn = getConnection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM tratamiento WHERE patientID = ? ORDER BY date DESC, ID DESC", (patientID,))
+        rows = cursor.fetchall()
+        return [Tratamiento(r[0], r[1], r[2], r[3], r[4]) for r in rows]
     finally:
         conn.close()
 
