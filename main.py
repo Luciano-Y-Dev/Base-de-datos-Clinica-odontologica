@@ -10,6 +10,7 @@ from views.form_patient import FormPatient
 from views.patient_detail_view import PatientDetailView
 from views.abonos_view import AbonosView
 from views.export_view import ExportView
+from views.welcome_dialog import WelcomeDialog, is_first_run
 from database.migrations import initialize_database
 from services import backup_service
 from services.patient_service import (
@@ -45,6 +46,26 @@ class MainW(QMainWindow):
             }
             QWidget {
                 background-color: #FDF2F4;
+            }
+            QMessageBox {
+                background-color: white;
+            }
+            QMessageBox QWidget {
+                background-color: white;
+            }
+            QMessageBox QLabel {
+                background-color: white;
+                color: #2D2D2D;
+            }
+            QMessageBox QPushButton {
+                background-color: #E0E0E0;
+                color: #2D2D2D;
+                border: 1px solid #BFBFBF;
+                border-radius: 4px;
+                padding: 6px 16px;
+            }
+            QMessageBox QPushButton:hover {
+                background-color: #D0D0D0;
             }
             QCalendarWidget {
                 background-color: white;
@@ -160,10 +181,18 @@ class MainW(QMainWindow):
             return
         try:
             path = backup_service.create_backup(dest)
-            QMessageBox.information(self, "Respaldo creado", f"Respaldo guardado en:\n{path}")
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Information)
+            msg.setWindowTitle("Respaldo creado")
+            msg.setText(f"Respaldo guardado en:\n{path}")
+            msg.exec()
         except Exception as ex:
-            logging.getLogger(__name__).exception("Error al crear respaldo")
-            QMessageBox.critical(self, "Error", f"No se pudo crear el respaldo:\n{ex}")
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Critical)
+            msg.setWindowTitle("Error")
+            msg.setText("No se pudo crear el respaldo")
+            msg.setInformativeText(str(ex))
+            msg.exec()
 
     def _run_restore(self):
         answer = QMessageBox.question(
@@ -182,11 +211,19 @@ class MainW(QMainWindow):
             return
         try:
             backup_service.restore_backup(src)
-            QMessageBox.information(self, "Restaurado", "El respaldo se restauró correctamente.")
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Information)
+            msg.setWindowTitle("Restaurado")
+            msg.setText("El respaldo se restauró correctamente.")
+            msg.exec()
             self.navigate("principal")
         except Exception as ex:
-            logging.getLogger(__name__).exception("Error al restaurar respaldo")
-            QMessageBox.critical(self, "Error", f"No se pudo restaurar el respaldo:\n{ex}")
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Critical)
+            msg.setWindowTitle("Error")
+            msg.setText("No se pudo restaurar el respaldo")
+            msg.setInformativeText(str(ex))
+            msg.exec()
 
     def _on_saved(self):
         self._switch_view(self._make_principal_view())
@@ -199,6 +236,12 @@ def main():
     app = QApplication(sys.argv)
     icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "clinica-icon.ico")
     app.setWindowIcon(QIcon(icon_path))
+
+    if is_first_run():
+        welcome = WelcomeDialog()
+        if welcome.exec() != WelcomeDialog.Accepted:
+            sys.exit(0)
+
     app.aboutToQuit.connect(backup_service.auto_backup)
     window = MainW()
     window.show()
