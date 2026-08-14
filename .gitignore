@@ -7,12 +7,13 @@ dist/
 
 *.log
 
-.env
 .venv/
-
 *.lock
 
-.vscode/
-
 data/*.db
-secret.key
+
+installer_output/
+*.spec
+
+*.pfx
+*.cer
