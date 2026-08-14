@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QMessageBox, QDialog
+    QFrame, QScrollArea, QDialog, QMessageBox
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
@@ -469,24 +469,19 @@ class PatientDetailView(QWidget):
         return frame
 
     def _on_delete(self):
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Question)
-        msg.setWindowTitle("Confirmar eliminación")
-        msg.setText(f"¿Eliminar a {self.paciente.name} {self.paciente.lastName}?")
-        msg.setInformativeText("Esta acción no se puede deshacer.")
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg.setDefaultButton(QMessageBox.No)
-        if msg.exec() == QMessageBox.Yes:
+        answer = QMessageBox.question(
+            self, "Confirmar eliminación",
+            "¿Estás seguro de que quieres eliminar este paciente?\n"
+            "Esta acción no se puede deshacer.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if answer == QMessageBox.Yes:
             try:
                 delete_patient(self.patient_id)
                 if self.navigate_callback:
                     self.navigate_callback("principal")
             except Exception as ex:
-                err = QMessageBox()
-                err.setIcon(QMessageBox.Critical)
-                err.setWindowTitle("Error")
-                err.setText(f"Error al eliminar: {ex}")
-                err.exec()
+                QMessageBox.critical(self, "Error", f"No se pudo eliminar: {ex}")
 
     def _on_edit(self):
         if self.navigate_callback:

@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QLineEdit, QTextEdit, QCheckBox,
-    QGridLayout, QGroupBox, QMessageBox, QDialog, QDateEdit
+    QGridLayout, QGroupBox, QDialog, QDateEdit, QMessageBox
 )
 from PySide6.QtCore import Qt, Signal, QDate
 from PySide6.QtGui import QFont
@@ -678,6 +678,6 @@ class FormPatient(QWidget):
                 self.pending_tratamientos.clear()
             self.saved.emit()
         except ValueError as ex:
-            QMessageBox.warning(self, "Error de validación", str(ex))
+            QMessageBox.warning(self, "Error", str(ex))
         except Exception as ex:
-            QMessageBox.critical(self, "Error al guardar", f"No se pudo guardar el registro:\n{ex}")
+            QMessageBox.critical(self, "Error al guardar", f"No se pudo guardar: {ex}")

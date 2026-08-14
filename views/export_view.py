@@ -245,7 +245,7 @@ class ExportView(QWidget):
     def _export(self):
         selected = [pid for cb, pid in self._checkboxes if cb.isChecked()]
         if not selected:
-            msg = QMessageBox()
+            msg = QMessageBox(self)
             msg.setIcon(QMessageBox.Warning)
             msg.setWindowTitle("Sin seleccion")
             msg.setText("Selecciona al menos un paciente para exportar.")
@@ -260,13 +260,13 @@ class ExportView(QWidget):
 
         try:
             generate_patients_pdf(selected, path)
-            msg = QMessageBox()
+            msg = QMessageBox(self)
             msg.setIcon(QMessageBox.Information)
             msg.setWindowTitle("Exportado")
             msg.setText(f"PDF exportado correctamente.\n{path}")
             msg.exec()
         except Exception as ex:
-            msg = QMessageBox()
+            msg = QMessageBox(self)
             msg.setIcon(QMessageBox.Critical)
             msg.setWindowTitle("Error")
             msg.setText(f"Error al exportar: {ex}")
