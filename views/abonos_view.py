@@ -428,7 +428,7 @@ class AbonosView(QWidget):
                     self.balance_label.setText("Cuenta saldada")
                     self.balance_label.setStyleSheet("color: #4CAF50; background: transparent;")
                 else:
-                    self.balance_label.setText(f"Saldo: ${remaining:.2f}")
+                    self.balance_label.setText(f"Saldo pendiente: ${remaining:.2f}")
                     self.balance_label.setStyleSheet(f"color: {Second}; background: transparent;")
                 break
 
@@ -450,7 +450,8 @@ class AbonosView(QWidget):
             return
 
         abonos = self._load_abonos_fn(self.selected_patient_id) if self._load_abonos_fn else []
-        for a in abonos:
+        abonos = list(reversed(abonos))  # Ordena del abono inicial al abono final
+        for i, a in enumerate(abonos):
             row = QFrame()
             row.setStyleSheet(f"""
                 QFrame {{
@@ -473,16 +474,17 @@ class AbonosView(QWidget):
             desc_lbl.setStyleSheet(f"color: {Txt1}; background: transparent;")
             row_lo.addWidget(desc_lbl, 2)
 
-            amt_lbl = QLabel(f"${a.amount:.2f}" if a.amount else "$0.00")
-            amt_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
-            amt_lbl.setStyleSheet(f"color: {Second}; background: transparent;")
-            row_lo.addWidget(amt_lbl, 1)
+            prev_balance = abonos[i-1].remaining if i > 0 else a.treatmentCost
+            if i == 0:
+                math_text = f"Costo inicial: ${prev_balance:.2f} - Abono: ${a.amount:.2f} = Saldo: ${a.remaining:.2f}"
+            else:
+                math_text = f"Saldo: ${prev_balance:.2f} - Abono: ${a.amount:.2f} = Saldo: ${a.remaining:.2f}"
 
-            rem_lbl = QLabel(f"${a.remaining:.2f}" if a.remaining else "$0.00")
-            rem_lbl.setFont(QFont("Segoe UI", 10))
-            rem_lbl.setStyleSheet(f"color: {Txt1}; background: transparent;")
-            rem_lbl.setAlignment(Qt.AlignRight)
-            row_lo.addWidget(rem_lbl, 1)
+            math_lbl = QLabel(math_text)
+            math_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
+            math_lbl.setStyleSheet(f"color: {Second}; background: transparent;")
+            math_lbl.setAlignment(Qt.AlignRight)
+            row_lo.addWidget(math_lbl, 2)
 
             edit_btn = QPushButton("Editar")
             edit_btn.setFixedSize(56, 24)
